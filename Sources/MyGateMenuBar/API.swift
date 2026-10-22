@@ -61,6 +61,17 @@ struct MGVisitor: Identifiable, Equatable {
     var passcode: String
 }
 
+struct MGFeedCard: Identifiable {
+    let id: String
+    let cardType: String
+    let name: String
+    let status: String
+    let detail: String
+    let timestamp: Date
+    let cancelId: String?
+    let ntype: String?
+}
+
 struct MGPass: Identifiable, Equatable {
     let id: String
     var title: String
@@ -163,6 +174,53 @@ struct MGAPI {
             let passcode = (person["passcode"] as? String) ?? ""
             return MGVisitor(id: id, name: name, type: type, photoURL: photo, passcode: passcode)
         }
+    }
+
+    func activityFeed(date: Date? = nil) async throws -> [MGFeedCard] {
+        var body: [String: Any] = ["userid": config.userId, "flat_id": config.flatId, "version": "4"]
+        if let date { body["date"] = Int(date.timeIntervalSince1970) }
+        let object = try await request("https://app.mygate.in/activity/v2/fetchcards", body: body)
+        let rows = (object["data"] as? [[String: Any]]) ?? []
+        return rows.compactMap { Self.parseFeedCard($0) }
+    }
+
+    func cancelPreApproval(gateMessageId: String, ntype: String?) async throws {
+        var body: [String: Any] = ["userid": config.userId, "flatid": config.flatId,
+                                   "gateMessageId": gateMessageId, "isDeleted": "1"]
+        if let ntype, !ntype.isEmpty { body["ntype"] = ntype }
+        _ = try await request("https://ack.mygate.in/preapprove/v2/send", body: body)
+    }
+
+    private static func parseFeedCard(_ item: [String: Any]) -> MGFeedCard? {
+        guard let cardId = item["cardId"] as? String else { return nil }
+        let cardType = (item["cardType"] as? String) ?? ""
+        let name = (item["name"] as? String) ?? ""
+        let status = (item["statusTitle"] as? String) ?? (item["status"] as? String) ?? ""
+        let descriptions = (item["desc"] as? [[String: Any]]) ?? []
+        var details: [String] = []
+        for description in descriptions {
+            guard var value = description["value"] as? String else { continue }
+            value = value.replacingOccurrences(of: "<IMGU>.*?</IMGU>", with: "", options: .regularExpression)
+            value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty { details.append(value) }
+        }
+        var timestamp = Date()
+        if let seconds = item["statusActionTime"] as? Double {
+            timestamp = Date(timeIntervalSince1970: seconds)
+        } else if let seconds = item["statusActionTime"] as? Int {
+            timestamp = Date(timeIntervalSince1970: TimeInterval(seconds))
+        }
+        var cancelId: String?
+        for action in (item["actions"] as? [[String: Any]]) ?? [] {
+            if (action["type"] as? String) == "CANCEL" {
+                cancelId = action["actionId"] as? String
+            }
+        }
+        let payload = (item["payload"] as? [String: Any]) ?? [:]
+        let ntype = payload["ntype"] as? String
+        return MGFeedCard(id: cardId, cardType: cardType, name: name, status: status,
+                          detail: details.joined(separator: " · "), timestamp: timestamp,
+                          cancelId: cancelId, ntype: ntype)
     }
 
     func myVisitsRaw() async throws -> [String: Any] {

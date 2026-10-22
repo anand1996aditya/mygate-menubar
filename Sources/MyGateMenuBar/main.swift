@@ -1,6 +1,37 @@
 import AppKit
 import SwiftUI
 
+enum HistoryTest {
+    @MainActor
+    static func run() {
+        Task { @MainActor in
+            guard let config = MGConfig.load(), config.isLoggedIn else {
+                print("HISTORY FAIL no session")
+                exit(1)
+            }
+            let model = MGModel()
+            model.phase = .loggedIn
+            await model.loadHistory()
+            print("HISTORY total=\(model.history.entries.count)")
+            for entry in model.history.recent.prefix(10) {
+                print("  \(entry.kind.rawValue) | \(entry.title) | \(entry.status) | \(entry.subtitle)")
+            }
+            let api = MGAPI(config: config)
+            if let entry = model.history.entries.first(where: {
+                $0.cancelId != nil && $0.status.uppercased().contains("PRE")
+            }) {
+                let before = ((try? await api.activityFeed()) ?? []).filter { $0.status.uppercased().contains("PRE-APPROVED") }.count
+                await model.revokeHistoryEntry(entry)
+                let after = ((try? await api.activityFeed()) ?? []).filter { $0.status.uppercased().contains("PRE-APPROVED") }.count
+                print("CANCEL msg=\(model.message) before=\(before) after=\(after)")
+            }
+            exit(0)
+        }
+        RunLoop.main.run()
+        exit(3)
+    }
+}
+
 enum FunctionalTest {
     @MainActor
     static func run() {
@@ -265,7 +296,9 @@ MainActor.assumeIsolated {
     app.setActivationPolicy(.accessory)
 }
 
-if CommandLine.arguments.contains("--functional-test") {
+if CommandLine.arguments.contains("--history-test") {
+    MainActor.assumeIsolated { HistoryTest.run() }
+} else if CommandLine.arguments.contains("--functional-test") {
     MainActor.assumeIsolated { FunctionalTest.run() }
 } else if let index = CommandLine.arguments.firstIndex(of: "--snapshot-forms") {
     let prefix = CommandLine.arguments.count > index + 1 ? CommandLine.arguments[index + 1] : "/tmp/mygate-form"

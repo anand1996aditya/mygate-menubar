@@ -757,14 +757,14 @@ struct HistoryView: View {
             get: { revokeTarget != nil },
             set: { if !$0 { revokeTarget = nil } }
         ), presenting: revokeTarget) { entry in
-            Button("Revoke pass", role: .destructive) {
-                let passId = String(entry.id.dropFirst(2))
+            Button("Revoke", role: .destructive) {
+                let target = entry
                 revokeTarget = nil
-                Task { await model.revokePass(passId: passId, seekId: nil) }
+                Task { await model.revokeHistoryEntry(target) }
             }
             Button("Cancel", role: .cancel) { revokeTarget = nil }
         } message: { _ in
-            Text("The pass will stop working immediately.")
+            Text("This entry will stop working immediately.")
         }
     }
 
@@ -792,7 +792,7 @@ struct HistoryView: View {
                     .font(.system(size: 9, design: .rounded))
                     .foregroundStyle(.tertiary)
             }
-            if entry.kind == .pass, isRevocable(entry) {
+            if entry.kind == .pass, isRevocable(entry), entry.cancelId != nil || entry.passcode != nil {
                 Button {
                     revokeTarget = entry
                 } label: {

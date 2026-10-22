@@ -302,6 +302,42 @@ final class MGModel: ObservableObject {
         }
     }
 
+    static func feedTitle(_ card: MGFeedCard) -> String {
+        switch card.cardType.uppercased() {
+        case "DELIVERY": return "Delivery"
+        case "CAB": return "Cab"
+        case "VISITORS": return "Visiting Help"
+        case "GUEST": return card.name.isEmpty ? "Guest invite" : "Guest invite – \(card.name)"
+        default: return card.name.isEmpty ? card.cardType.capitalized : card.name
+        }
+    }
+
+    func revokeHistoryEntry(_ entry: MGHistoryEntry) async {
+        guard phase == .loggedIn else { return }
+        busy = true; message = ""
+        defer { busy = false }
+        do {
+            if let cancelId = entry.cancelId, entry.id.hasPrefix("f:") {
+                try await MGAPI(config: config).cancelPreApproval(gateMessageId: cancelId, ntype: entry.cancelNtype)
+                MGDiagnostics.append("preapproval cancelled id=\(entry.id) gateMessage=\(cancelId)")
+                history.updateStatus(id: entry.id, status: "Cancelled")
+                message = "Pre-approval cancelled"
+            } else if entry.id.hasPrefix("p:") {
+                let passId = String(entry.id.dropFirst(2))
+                try await MGAPI(config: config).deleteVisit(inviteId: passId, seekId: nil)
+                MGDiagnostics.append("pass revoked id=\(passId)")
+                history.updateStatus(id: entry.id, status: "Revoked")
+                message = "Pass revoked"
+            } else {
+                return
+            }
+            await loadHistory()
+        } catch {
+            MGDiagnostics.append("revoke failed id=\(entry.id) error=\(error.localizedDescription)")
+            message = "Revoke failed: \(error.localizedDescription)"
+        }
+    }
+
     func loadHistory() async {
         guard phase == .loggedIn else { return }
         let api = MGAPI(config: config)
@@ -323,7 +359,20 @@ final class MGModel: ObservableObject {
                                timeText: pass.timeText, detail: pass.detail,
                                passcode: pass.passcode)
         }
-        MGDiagnostics.append("history visitors=\(visitors.count) passes=\(passes.count) stored=\(history.entries.count)")
+        var feedCards: [String: MGFeedCard] = [:]
+        for day in 0...3 {
+            let date = day == 0 ? nil : Date().addingTimeInterval(-Double(day) * 86_400)
+            if let cards = try? await api.activityFeed(date: date) {
+                for card in cards { feedCards[card.id] = card }
+            }
+        }
+        for card in feedCards.values {
+            history.recordFeedCard(id: card.id, title: Self.feedTitle(card),
+                                   subtitle: card.detail.isEmpty ? card.cardType.capitalized : card.detail,
+                                   status: card.status, timestamp: card.timestamp,
+                                   cancelId: card.cancelId, cancelNtype: card.ntype)
+        }
+        MGDiagnostics.append("history visitors=\(visitors.count) passes=\(passes.count) feed=\(feedCards.count) stored=\(history.entries.count)")
     }
 
     func loadPreApproveLists() async {

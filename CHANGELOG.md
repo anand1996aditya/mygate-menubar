@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0 — 22 Oct 2026
+
+- History now imports MyGate's activity feed, the same list the phone shows, for the last 72 hours.
+- Delivery, cab and visiting-help pre-approvals can now be cancelled from History.
+- Feed entries are grouped by day and remain scrollable.
+
 ## 1.3.2 — 22 Oct 2026
 
 - History is scrollable and shows every stored entry, grouped by day.

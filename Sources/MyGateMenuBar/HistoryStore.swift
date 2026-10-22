@@ -14,6 +14,8 @@ struct MGHistoryEntry: Codable, Identifiable, Equatable {
     var timestamp: Date
     var photoURL: String?
     var passcode: String?
+    var cancelId: String? = nil
+    var cancelNtype: String? = nil
 
     var timeLabel: String {
         if !timeText.isEmpty { return timeText }
@@ -74,6 +76,8 @@ final class MGHistoryStore: ObservableObject {
             existing.timeText = entry.timeText.isEmpty ? existing.timeText : entry.timeText
             existing.photoURL = entry.photoURL ?? existing.photoURL
             existing.passcode = entry.passcode ?? existing.passcode
+            existing.cancelId = entry.cancelId ?? existing.cancelId
+            existing.cancelNtype = entry.cancelNtype ?? existing.cancelNtype
             entries[index] = existing
         } else {
             entries.append(entry)
@@ -142,6 +146,14 @@ final class MGHistoryStore: ObservableObject {
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
         entries[index].status = status
         save()
+    }
+
+    func recordFeedCard(id: String, title: String, subtitle: String, status: String,
+                        timestamp: Date, cancelId: String?, cancelNtype: String?) {
+        upsert(MGHistoryEntry(id: "f:\(id)", kind: .pass, title: title, subtitle: subtitle,
+                              status: status, timeText: MGHistoryStore.timeFormatter.string(from: timestamp),
+                              timestamp: timestamp, photoURL: nil, passcode: nil,
+                              cancelId: cancelId, cancelNtype: cancelNtype))
     }
 
     func recordPass(id: String, title: String, status: String, timeText: String, detail: String,
