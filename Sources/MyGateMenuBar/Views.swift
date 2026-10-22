@@ -688,95 +688,69 @@ struct HistoryView: View {
     @State private var revokeTarget: MGHistoryEntry?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("Today at the gate")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                Spacer()
-                Text(Date().formatted(.dateTime.day().month(.abbreviated)))
-                    .font(.system(size: 10, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-
-            section("INSIDE NOW")
-            if model.historyVisitors.isEmpty {
-                emptyRow("No one is inside right now")
-            } else {
-                ForEach(model.historyVisitors) { visitor in
-                    HStack(spacing: 10) {
-                        photo(url: visitor.photoURL)
-                            .frame(width: 34, height: 34)
-                            .clipShape(Circle())
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(visitor.name)
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            Text(visitor.type.replacingOccurrences(of: "_", with: " ").capitalized)
-                                .font(.system(size: 9, design: .rounded))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if !visitor.passcode.isEmpty {
-                            Text(visitor.passcode)
-                                .font(.system(size: 9, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text("Gate history")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    Spacer()
+                    Text("3 days")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
                 }
-            }
 
-            section("GATE LOG (3 DAYS)")
-            let log = model.history.entries
-            if log.isEmpty {
-                emptyRow("No gate activity recorded yet")
-            } else {
-                ForEach(log.prefix(30)) { entry in
-                    HStack(spacing: 8) {
-                        Image(systemName: entry.kind == .gate ? "bell.fill" : (entry.kind == .visitor ? "person.fill" : "ticket.fill"))
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 14)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(entry.title)
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
-                                .lineLimit(1)
-                            Text(subtitle(for: entry))
-                                .font(.system(size: 9, design: .rounded))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: 1) {
-                            Text(entry.status)
-                                .font(.system(size: 9, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.secondary)
-                            Text(entry.timeLabel)
-                                .font(.system(size: 9, design: .rounded))
-                                .foregroundStyle(.tertiary)
-                        }
-                        if entry.kind == .pass, isRevocable(entry) {
-                            Button {
-                                revokeTarget = entry
-                            } label: {
-                                Text("Revoke")
-                                    .font(.system(size: 9, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.red)
-                                    .padding(.horizontal, 8).padding(.vertical, 4)
-                                    .background(Color.red.opacity(0.10), in: Capsule())
-                                    .contentShape(Capsule())
+                section("INSIDE NOW")
+                if model.historyVisitors.isEmpty {
+                    emptyRow("No one is inside right now")
+                } else {
+                    ForEach(model.historyVisitors) { visitor in
+                        HStack(spacing: 10) {
+                            photo(url: visitor.photoURL)
+                                .frame(width: 34, height: 34)
+                                .clipShape(Circle())
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(visitor.name)
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                Text(visitor.type.replacingOccurrences(of: "_", with: " ").capitalized)
+                                    .font(.system(size: 9, design: .rounded))
+                                    .foregroundStyle(.secondary)
                             }
-                            .buttonStyle(.plain)
-                            .disabled(model.busy)
+                            Spacer()
+                            if !visitor.passcode.isEmpty {
+                                Text(visitor.passcode)
+                                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
-                    Divider().opacity(0.3)
                 }
-            }
 
-            Text("Stored locally for up to three days.")
-                .font(.system(size: 9, design: .rounded))
-                .foregroundStyle(.tertiary)
+                section("GATE LOG")
+                let log = model.history.recent
+                if log.isEmpty {
+                    emptyRow("No gate activity recorded yet")
+                } else {
+                    ForEach(Array(log.enumerated()), id: \.element.id) { index, entry in
+                        if index == 0 || !Calendar.current.isDate(entry.timestamp,
+                                                                 inSameDayAs: log[index - 1].timestamp) {
+                            Text(dayLabel(entry.timestamp))
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .foregroundStyle(.tertiary)
+                                .tracking(0.6)
+                                .padding(.top, 4)
+                        }
+                        historyRow(entry)
+                        Divider().opacity(0.3)
+                    }
+                }
+
+                Text("Stored locally for up to three days. Scroll to see older entries.")
+                    .font(.system(size: 9, design: .rounded))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(16)
         }
-        .padding(16)
+        .frame(height: 560)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear { Task { await model.loadHistory() } }
         .confirmationDialog("Revoke this pass?", isPresented: Binding(
@@ -792,6 +766,53 @@ struct HistoryView: View {
         } message: { _ in
             Text("The pass will stop working immediately.")
         }
+    }
+
+    private func historyRow(_ entry: MGHistoryEntry) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: entry.kind == .gate ? "bell.fill" : (entry.kind == .visitor ? "person.fill" : "ticket.fill"))
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .frame(width: 14)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(entry.title)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .lineLimit(1)
+                Text(subtitle(for: entry))
+                    .font(.system(size: 9, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(entry.status)
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                Text(entry.timeLabel)
+                    .font(.system(size: 9, design: .rounded))
+                    .foregroundStyle(.tertiary)
+            }
+            if entry.kind == .pass, isRevocable(entry) {
+                Button {
+                    revokeTarget = entry
+                } label: {
+                    Text("Revoke")
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.red)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Color.red.opacity(0.10), in: Capsule())
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(model.busy)
+            }
+        }
+    }
+
+    private func dayLabel(_ date: Date) -> String {
+        if Calendar.current.isDateInToday(date) { return "TODAY" }
+        if Calendar.current.isDateInYesterday(date) { return "YESTERDAY" }
+        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)).uppercased()
     }
 
     private func subtitle(for entry: MGHistoryEntry) -> String {

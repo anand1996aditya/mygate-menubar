@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.2 — 22 Oct 2026
+
+- History is scrollable and shows every stored entry, grouped by day.
+- Removed the 30-entry display cap.
+
 ## 1.3.1 — 22 Oct 2026
 
 - Delivery dropdown gains "Others (any delivery)", so a courier from an unlisted company can still be pre-approved.
