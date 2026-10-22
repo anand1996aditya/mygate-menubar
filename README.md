@@ -29,6 +29,11 @@ The app uses the same endpoints as the MyGate Android app:
 
 Polling replaces push notifications, because the phone app's FCM channel is not available on macOS.
 
+## Who can use it
+
+Any MyGate resident. The app has no hard-coded user, flat or society. Log in with your own
+phone number and OTP; the session is stored only on your Mac.
+
 ## Setup
 
 1. Build and install:
