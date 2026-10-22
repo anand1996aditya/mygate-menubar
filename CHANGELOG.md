@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.3 — 22 Oct 2026
+
+- Action button and duration selector share the same 40 pt height and capsule structure.
+
 ## 1.2.2 — 22 Oct 2026
 
 - Delivery company and duration fields share one fixed 40 pt height.

@@ -337,7 +337,8 @@ struct PreApprovalSection: View {
                             Text(actionLabel)
                                 .font(.system(size: 11, weight: .bold, design: .rounded))
                                 .foregroundStyle(Brand.ink)
-                                .padding(.horizontal, 16).padding(.vertical, 7)
+                                .padding(.horizontal, 16)
+                                .frame(height: 40)
                                 .background(Brand.yellow.opacity(canSubmit ? 1 : 0.45), in: Capsule())
                                 .contentShape(Capsule())
                         }
