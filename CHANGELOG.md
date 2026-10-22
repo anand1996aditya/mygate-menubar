@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0 — 22 Oct 2026
+
+- Cab pre-approval uses a four-box code field and stops at four digits.
+- Button labels match MyGate: Send invite for guests, Pre-approve for delivery, cab and visiting help.
+- Delivery company list comes from MyGate's live provider list, sorted, with Blinkit, Zomato and Swiggy included.
+- Visitor and gate history is stored locally for up to three days.
+- Approval buttons show progress and keep errors visible instead of closing silently.
+- Offline self-tests for parsing, cab digits, labels, company defaults and history retention.
+
 ## 1.1.0 — 22 Oct 2026
 
 - Visitor popup rebuilt as a borderless, key-capable panel with reliable buttons.

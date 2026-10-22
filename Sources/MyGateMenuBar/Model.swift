@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import SwiftUI
 
 @MainActor
@@ -15,16 +16,30 @@ final class MGModel: ObservableObject {
     @Published var helpCategories: [(name: String, typeId: String)] = []
     @Published var historyVisitors: [MGVisitor] = []
     @Published var historyPasses: [MGPass] = []
+    let history = MGHistoryStore.shared
+
+    static let defaultDeliveryCompanies = [
+        "AMAZON", "BIGBASKET", "BLINKIT", "DOMINOS PIZZA", "FLIPKART", "INSTAMART",
+        "SWIGGY", "ZEPTO", "ZOMATO"
+    ]
+
+    private var lastPendingId: String?
 
     var onPending: ((MGPending) -> Void)?
     var onPendingCleared: (() -> Void)?
 
     private var pollTask: Task<Void, Never>?
+    private var historyTask: Task<Void, Never>?
     private var seenValidationId: String?
+
+    private var historyCancellable: AnyCancellable?
 
     init() {
         config = MGConfig.load() ?? MGConfig()
         phase = config.isLoggedIn ? .loggedIn : .loggedOut
+        historyCancellable = history.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
     }
 
     var statusLine: String {
@@ -42,9 +57,18 @@ final class MGModel: ObservableObject {
                 try? await Task.sleep(nanoseconds: 2 * 1_000_000_000)
             }
         }
+        historyTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.loadHistory()
+                try? await Task.sleep(nanoseconds: 300 * 1_000_000_000)
+            }
+        }
     }
 
-    func stop() { pollTask?.cancel(); pollTask = nil }
+    func stop() {
+        pollTask?.cancel(); pollTask = nil
+        historyTask?.cancel(); historyTask = nil
+    }
 
     func sendOTP(phone: String) async {
         guard !phone.isEmpty else { message = "Enter the mobile number"; return }
@@ -103,11 +127,17 @@ final class MGModel: ObservableObject {
             if let found {
                 if found.validationId != seenValidationId {
                     seenValidationId = found.validationId
+                    lastPendingId = found.validationId
                     pending = found
+                    history.recordGate(found)
                     onPending?(found)
                 }
             } else if pending != nil {
                 pending = nil
+                if let lastPendingId {
+                    history.updateGate(validationId: lastPendingId, status: "Cleared")
+                }
+                lastPendingId = nil
                 onPendingCleared?()
             }
         } catch {
@@ -121,10 +151,14 @@ final class MGModel: ObservableObject {
         defer { busy = false }
         do {
             try await MGAPI(config: config).approve(pending)
+            MGDiagnostics.append("approve ok id=\(pending.validationId)")
+            history.updateGate(validationId: pending.validationId, status: "Approved")
+            lastPendingId = nil
             message = "Approved \(pending.title)"
             self.pending = nil
             onPendingCleared?()
         } catch {
+            MGDiagnostics.append("approve failed id=\(pending.validationId) error=\(error.localizedDescription)")
             message = "Approve failed: \(error.localizedDescription)"
         }
     }
@@ -134,17 +168,29 @@ final class MGModel: ObservableObject {
         defer { busy = false }
         do {
             try await MGAPI(config: config).reject(pending, reason: reason)
+            MGDiagnostics.append("reject ok id=\(pending.validationId)")
+            history.updateGate(validationId: pending.validationId, status: "Denied")
+            lastPendingId = nil
             message = "Denied \(pending.title)"
             self.pending = nil
             onPendingCleared?()
         } catch {
+            MGDiagnostics.append("reject failed id=\(pending.validationId) error=\(error.localizedDescription)")
             message = "Deny failed: \(error.localizedDescription)"
         }
+    }
+
+    static func normalizeCabDigits(_ raw: String) -> String {
+        String(raw.filter(\.isNumber).prefix(4))
     }
 
     enum PreApprovalType: String, CaseIterable, Identifiable {
         case guest, delivery, cab, visitingHelp
         var id: String { rawValue }
+        var actionTitle: String {
+            self == .guest ? "Send invite" : "Pre-approve"
+        }
+
         var label: String {
             switch self {
             case .guest: return "Guest"
@@ -195,19 +241,36 @@ final class MGModel: ObservableObject {
     func loadHistory() async {
         guard phase == .loggedIn else { return }
         let api = MGAPI(config: config)
-        if let visitors = try? await api.currentVisitors() { historyVisitors = visitors }
-        if let passes = try? await api.myVisits() { historyPasses = passes }
+        if let visitors = try? await api.currentVisitors() {
+            historyVisitors = visitors
+            for visitor in visitors {
+                history.recordVisitor(name: visitor.name, type: visitor.type,
+                                      passcode: visitor.passcode, photoURL: visitor.photoURL?.absoluteString)
+            }
+        }
+        if let passes = try? await api.myVisits() {
+            historyPasses = passes
+            for pass in passes {
+                history.recordPass(id: pass.id, title: pass.title, status: pass.status,
+                                   timeText: pass.timeText, detail: pass.detail)
+            }
+        }
     }
 
     func loadPreApproveLists() async {
         guard phase == .loggedIn else { return }
         let api = MGAPI(config: config)
+        if let providers = try? await api.deliveryProviders() {
+            companies = providers.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        }
         if let info = try? await api.preApproveInfo() {
-            companies = info.companies.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            if companies.isEmpty {
+                companies = info.companies.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            }
             helpCategories = info.categories.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         }
-        if companies.isEmpty, let providers = try? await api.deliveryProviders() {
-            companies = providers.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        if companies.isEmpty {
+            companies = MGModel.defaultDeliveryCompanies
         }
     }
 

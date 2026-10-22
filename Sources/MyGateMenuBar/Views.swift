@@ -191,19 +191,33 @@ struct HeroCard: View {
                 }
                 Spacer()
             }
-            HStack(spacing: 8) {
-                Text("Deny")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+            if !model.message.isEmpty {
+                Text(model.message)
+                    .font(.system(size: 9, weight: .medium, design: .rounded))
                     .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity).padding(.vertical, 8)
-                    .background(Color.red.opacity(0.08), in: Capsule())
-                    .onTapGesture { Task { await model.reject(pending) } }
-                Text("Approve")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 8)
-                    .background(Brand.green, in: Capsule())
-                    .onTapGesture { Task { await model.approve(pending) } }
+                    .lineLimit(2)
+            }
+            HStack(spacing: 8) {
+                Button { Task { await model.reject(pending) } } label: {
+                    Text("Deny")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity).padding(.vertical, 9)
+                        .background(Color.red.opacity(0.08), in: Capsule())
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(model.busy)
+                Button { Task { await model.approve(pending) } } label: {
+                    Text(model.busy ? "Working…" : "Approve")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).padding(.vertical, 9)
+                        .background(Brand.green.opacity(model.busy ? 0.5 : 1), in: Capsule())
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(model.busy)
             }
         }
         .padding(12)
@@ -296,12 +310,16 @@ struct PreApprovalSection: View {
                     form(for: selected)
                     HStack(spacing: 8) {
                         durationMenu
-                        Text(selected == .guest ? "Send invite" : "Create")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(Brand.ink)
-                            .padding(.horizontal, 16).padding(.vertical, 7)
-                            .background(Brand.yellow, in: Capsule())
-                            .onTapGesture(perform: onCreate)
+                        Button(action: onCreate) {
+                            Text(actionLabel)
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(Brand.ink)
+                                .padding(.horizontal, 16).padding(.vertical, 7)
+                                .background(Brand.yellow.opacity(canSubmit ? 1 : 0.45), in: Capsule())
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!canSubmit || model.busy)
                     }
                 }
                 .padding(12)
@@ -312,6 +330,24 @@ struct PreApprovalSection: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(.horizontal, 16)
+    }
+
+    private var actionLabel: String {
+        selected?.actionTitle ?? "Pre-approve"
+    }
+
+    private var canSubmit: Bool {
+        guard let selected else { return false }
+        switch selected {
+        case .guest:
+            return !name.trimmingCharacters(in: .whitespaces).isEmpty && guestPhone.filter(\.isNumber).count >= 10
+        case .delivery:
+            return !name.trimmingCharacters(in: .whitespaces).isEmpty
+        case .cab:
+            return vehicle.filter(\.isNumber).count == 4
+        case .visitingHelp:
+            return !name.isEmpty && helpTypeId != nil
+        }
     }
 
     @ViewBuilder private func form(for type: MGModel.PreApprovalType) -> some View {
@@ -327,7 +363,7 @@ struct PreApprovalSection: View {
                      onPick: { name = $0 },
                      searchable: true)
         case .cab:
-            textField("Last 4 digits of cab number", text: $vehicle)
+            CabCodeField(code: $vehicle)
         case .visitingHelp:
             dropdown(title: helpTitle, options: model.helpCategories.map(\.name),
                      onPick: { picked in
@@ -429,8 +465,53 @@ struct PreApprovalSection: View {
         .contentShape(Rectangle())
         .onTapGesture {
             selected = isSelected ? nil : type
-            if type != .visitingHelp { helpTypeId = nil; if type != .delivery && type != .visitingHelp { name = "" } }
+            if type != .visitingHelp { helpTypeId = nil }
+            if type == .cab { vehicle = "" } else if type != .delivery && type != .visitingHelp { name = "" }
         }
+    }
+}
+
+struct CabCodeField: View {
+    @Binding var code: String
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        ZStack {
+            HStack(spacing: 8) {
+                ForEach(0..<4, id: \.self) { index in
+                    box(index)
+                }
+            }
+            TextField("", text: Binding(
+                get: { code },
+                set: { code = MGModel.normalizeCabDigits($0) }
+            ))
+            .textFieldStyle(.plain)
+            .font(.system(size: 18, weight: .semibold, design: .monospaced))
+            .foregroundStyle(.clear)
+            .tint(.clear)
+            .focused($focused)
+            .opacity(0.03)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .onTapGesture { focused = true }
+    }
+
+    private func box(_ index: Int) -> some View {
+        let character = index < code.count ? String(Array(code)[index]) : ""
+        let isNext = focused && code.count == index
+        return Text(character)
+            .font(.system(size: 18, weight: .semibold, design: .monospaced))
+            .frame(maxWidth: .infinity)
+            .frame(height: 42)
+            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(isNext ? Brand.orange : Color.secondary.opacity(0.15),
+                            lineWidth: isNext ? 1.5 : 1)
+            )
     }
 }
 
@@ -544,28 +625,32 @@ struct HistoryView: View {
                 }
             }
 
-            section("PASSES TODAY")
-            let passes = model.historyPasses
-            if passes.isEmpty {
-                emptyRow("No passes today")
+            section("GATE LOG (24 HOURS)")
+            let log = model.history.last24Hours
+            if log.isEmpty {
+                emptyRow("No gate activity recorded yet")
             } else {
-                ForEach(passes.prefix(8)) { pass in
+                ForEach(log.prefix(12)) { entry in
                     HStack(spacing: 8) {
+                        Image(systemName: entry.kind == .gate ? "bell.fill" : (entry.kind == .visitor ? "person.fill" : "ticket.fill"))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 14)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(pass.title)
+                            Text(entry.title)
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .lineLimit(1)
-                            Text(pass.detail.isEmpty ? pass.status : pass.detail)
+                            Text(entry.subtitle.isEmpty ? entry.kind.rawValue.capitalized : entry.subtitle)
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 1) {
-                            Text(pass.status)
+                            Text(entry.status)
                                 .font(.system(size: 9, weight: .semibold, design: .rounded))
                                 .foregroundStyle(.secondary)
-                            Text(pass.timeText)
+                            Text(entry.timeLabel)
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundStyle(.tertiary)
                         }
@@ -574,7 +659,7 @@ struct HistoryView: View {
                 }
             }
 
-            Text("History comes from MyGate's live gate list and today's passes.")
+            Text("Stored locally for up to three days.")
                 .font(.system(size: 9, design: .rounded))
                 .foregroundStyle(.tertiary)
         }
@@ -610,8 +695,10 @@ struct HistoryView: View {
 
 struct PendingPanelView: View {
     let pending: MGPending
+    var errorText: String? = nil
     let onApprove: () -> Void
     let onDeny: () -> Void
+    @State private var busy = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -642,23 +729,51 @@ struct PendingPanelView: View {
                         .foregroundStyle(.white.opacity(0.85))
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                if let errorText, !errorText.isEmpty {
+                    Text(errorText)
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 HStack(spacing: 10) {
-                    Button(action: onDeny) {
-                        Text("Deny")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity).padding(.vertical, 11)
-                            .background(.white.opacity(0.18), in: Capsule())
+                    Button {
+                        busy = true
+                        onDeny()
+                    } label: {
+                        Group {
+                            if busy {
+                                ProgressView().controlSize(.small).tint(.white)
+                            } else {
+                                Text("Deny")
+                            }
+                        }
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).padding(.vertical, 12)
+                        .background(.white.opacity(0.18), in: Capsule())
+                        .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
-                    Button(action: onApprove) {
-                        Text("Approve")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(Brand.ink)
-                            .frame(maxWidth: .infinity).padding(.vertical, 11)
-                            .background(Brand.yellow, in: Capsule())
+                    .disabled(busy)
+                    Button {
+                        busy = true
+                        onApprove()
+                    } label: {
+                        Group {
+                            if busy {
+                                ProgressView().controlSize(.small).tint(Brand.ink)
+                            } else {
+                                Text("Approve")
+                            }
+                        }
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(Brand.ink)
+                        .frame(maxWidth: .infinity).padding(.vertical, 12)
+                        .background(Brand.yellow, in: Capsule())
+                        .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
+                    .disabled(busy)
                 }
             }
             .padding(18)

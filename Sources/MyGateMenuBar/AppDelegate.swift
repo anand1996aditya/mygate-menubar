@@ -146,22 +146,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
     }
 
-    private func showPendingPanel(_ pending: MGPending) {
-        MGDiagnostics.append("pending panel shown id=\(pending.validationId)")
+    private func showPendingPanel(_ pending: MGPending, error: String? = nil) {
+        MGDiagnostics.append("pending panel shown id=\(pending.validationId) error=\(error ?? "none")")
         closePendingPanel()
         let card = PendingPanelView(
             pending: pending,
+            errorText: error,
             onApprove: { [weak self] in
-                self?.closePendingPanel()
-                Task { await self?.model.approve(pending) }
+                Task { @MainActor in
+                    guard let self else { return }
+                    await self.model.approve(pending)
+                    if self.model.pending == nil {
+                        self.closePendingPanel()
+                    } else {
+                        self.showPendingPanel(pending, error: self.model.message)
+                    }
+                }
             },
             onDeny: { [weak self] in
-                self?.closePendingPanel()
-                Task { await self?.model.reject(pending) }
+                Task { @MainActor in
+                    guard let self else { return }
+                    await self.model.reject(pending)
+                    if self.model.pending == nil {
+                        self.closePendingPanel()
+                    } else {
+                        self.showPendingPanel(pending, error: self.model.message)
+                    }
+                }
             }
         )
         let size = NSSize(width: 400, height: 620)
         let hosting = NSHostingView(rootView: card)
+        hosting.sizingOptions = []
+        hosting.translatesAutoresizingMaskIntoConstraints = true
         hosting.frame = NSRect(origin: .zero, size: size)
         hosting.autoresizingMask = [.width, .height]
         let panel = KeyablePanel(contentRect: NSRect(origin: .zero, size: size),
@@ -178,12 +195,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         panel.hasShadow = true
         panel.contentView = hosting
         panel.setContentSize(size)
+        panel.contentMinSize = size
+        panel.contentMaxSize = size
+        panel.minSize = size
+        panel.maxSize = size
         if let screen = NSScreen.main {
             let x = screen.visibleFrame.maxX - size.width - 14
             let y = screen.visibleFrame.maxY - size.height - 10
             panel.setFrameOrigin(NSPoint(x: x, y: y))
         }
-        panel.orderFrontRegardless()
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
         pendingPanel = panel
     }
 

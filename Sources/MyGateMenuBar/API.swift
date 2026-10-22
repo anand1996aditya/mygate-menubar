@@ -133,6 +133,7 @@ struct MGAPI {
             MGDiagnostics.saveRaw(object, name: "pending-raw.json")
             return nil
         }
+        MGDiagnostics.saveRaw(data, name: "pending-last.json")
         let parsed = MGAPI.parsePending(data)
         if parsed == nil { MGDiagnostics.saveRaw(data, name: "pending-raw.json") }
         return parsed
