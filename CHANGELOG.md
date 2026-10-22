@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.1 — 23 Oct 2026
+
+- The MyGate access key now lives in the macOS Keychain (service `com.secureu.mygate`), not in `config.json`.
+- Existing sessions migrate on first launch: the key moves to the Keychain and is blanked from the JSON. Other settings are kept.
+- `config.json` now holds only non-secret settings and keeps `0600` permissions.
+- Diagnostics logs and raw diagnostic dumps are written with `0600`; older `0644` logs are repaired on launch.
+- Ad-hoc signing is unchanged. Notarisation needs an Apple Developer ID and is not part of this release.
+
 ## 1.4.0 — 22 Oct 2026
 
 - History now imports MyGate's activity feed, the same list the phone shows, for the last 72 hours.

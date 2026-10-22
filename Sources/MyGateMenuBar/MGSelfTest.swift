@@ -96,7 +96,119 @@ enum MGUnitTests {
         check(pruned.entries.isEmpty, "history prunes beyond retention")
         try? FileManager.default.removeItem(at: pruneURL)
 
+        // Keychain-backed access key storage, migration and log permissions
+        tokenStorageTests(check)
+
         print("UNIT failures=\(failures)")
         return failures
+    }
+
+    /// Exercises Keychain-backed storage, one-time migration and log permissions
+    /// with an in-memory token store. The real Keychain is never touched here.
+    private static func tokenStorageTests(_ check: (Bool, String) -> Void) {
+        let manager = FileManager.default
+        let directory = manager.temporaryDirectory
+            .appendingPathComponent("mg-storage-test-\(UUID().uuidString)", isDirectory: true)
+        try? manager.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? manager.removeItem(at: directory) }
+        let configURL = directory.appendingPathComponent("config.json")
+
+        func writeLegacyJSON(_ token: String) {
+            let legacy: [String: Any] = [
+                "apiKey": token,
+                "userId": "1000000",
+                "flatId": "flat-1",
+                "phone": "9876543210",
+                "name": "Test Resident",
+                "deviceId": "device-1",
+                "versionCode": "36",
+                "appVersion": "7.39.0"
+            ]
+            if let data = try? JSONSerialization.data(withJSONObject: legacy) {
+                try? data.write(to: configURL)
+            }
+        }
+
+        func rawJSON() -> [String: Any] {
+            guard let data = try? Data(contentsOf: configURL),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return [:]
+            }
+            return object
+        }
+
+        let key = (service: MGConfig.keychainService, account: MGConfig.keychainAccount)
+
+        // Deliberate failure paths must not write to the real diagnostics log.
+        MGDiagnostics.suppressWrites = true
+        defer { MGDiagnostics.suppressWrites = false }
+
+        // Legacy plain-text token moves to the secure store and leaves the JSON.
+        writeLegacyJSON("legacy-token-abc")
+        let store = InMemoryTokenStore()
+        let migrated = MGConfig.load(from: configURL, tokenStore: store)
+        check(migrated?.apiKey == "legacy-token-abc", "legacy access key migrates in memory")
+        check(store.value(service: key.service, account: key.account) == "legacy-token-abc",
+              "legacy access key stored in secure store")
+        check(rawJSON()["apiKey"] == nil, "legacy access key removed from config json")
+        check(migrated?.userId == "1000000", "migration preserves user id")
+        check(migrated?.name == "Test Resident", "migration preserves profile fields")
+
+        // The secure store wins over a stale plain-text copy.
+        writeLegacyJSON("stale-json-token")
+        let preferred = MGConfig.load(from: configURL, tokenStore: store)
+        check(preferred?.apiKey == "legacy-token-abc", "secure store preferred over legacy json")
+        check(rawJSON()["apiKey"] == nil, "stale legacy copy scrubbed when secure store wins")
+
+        // A failed secure-store write keeps the legacy copy and a usable session.
+        writeLegacyJSON("cannot-migrate-token")
+        let brokenStore = InMemoryTokenStore()
+        brokenStore.failWrite = true
+        let fallback = MGConfig.load(from: configURL, tokenStore: brokenStore)
+        check(fallback?.apiKey == "cannot-migrate-token", "session works when secure store write fails")
+        check(rawJSON()["apiKey"] as? String == "cannot-migrate-token",
+              "legacy copy kept when migration fails")
+
+        // Saving writes the token to the store and never to the JSON.
+        var saved = fallback ?? MGConfig()
+        saved.apiKey = "new-access-key"
+        let saveStore = InMemoryTokenStore()
+        check(saved.save(to: configURL, tokenStore: saveStore), "config save succeeds")
+        check(saveStore.value(service: key.service, account: key.account) == "new-access-key",
+              "save writes access key to secure store")
+        check(rawJSON()["apiKey"] == nil, "save keeps access key out of config json")
+        let reloaded = MGConfig.load(from: configURL, tokenStore: saveStore)
+        check(reloaded?.apiKey == "new-access-key", "access key reloads from secure store")
+
+        // Signing out clears the stored access key.
+        var signedOut = reloaded ?? MGConfig()
+        signedOut.apiKey = ""
+        _ = signedOut.save(to: configURL, tokenStore: saveStore)
+        check(saveStore.value(service: key.service, account: key.account) == nil,
+              "sign out removes access key from secure store")
+        check(rawJSON()["apiKey"] == nil, "sign out keeps access key out of config json")
+
+        // A Keychain read error does not crash loading.
+        let unreadable = InMemoryTokenStore()
+        unreadable.failRead = true
+        check(MGConfig.load(from: configURL, tokenStore: unreadable) != nil,
+              "config loads when secure store read fails")
+
+        // Diagnostics logs and dumps are owner-only.
+        MGDiagnostics.suppressWrites = false
+        let logURL = directory.appendingPathComponent("diagnostics.log")
+        MGDiagnostics.append("permission test", to: logURL)
+        check(fileMode(of: logURL) == 0o600, "diagnostics log created with 0600")
+        try? manager.setAttributes([.posixPermissions: 0o644], ofItemAtPath: logURL.path)
+        MGDiagnostics.append("permission repair", to: logURL)
+        check(fileMode(of: logURL) == 0o600, "leftover log repaired to 0600")
+        MGDiagnostics.saveRaw(["probe": 1], name: "pending-raw.json", directory: directory)
+        check(fileMode(of: directory.appendingPathComponent("pending-raw.json")) == 0o600,
+              "diagnostic dump created with 0600")
+    }
+
+    private static func fileMode(of url: URL) -> Int? {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path) else { return nil }
+        return (attributes[.posixPermissions] as? NSNumber)?.intValue
     }
 }

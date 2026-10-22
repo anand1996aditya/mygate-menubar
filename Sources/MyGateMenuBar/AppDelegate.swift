@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var globalClickMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        MGDiagnostics.hardenExistingLogs()
         let me = ProcessInfo.processInfo.processIdentifier
         if AppDelegate.demoCapturePath == nil {
             let bundleId = Bundle.main.bundleIdentifier ?? "com.secureu.mygate"

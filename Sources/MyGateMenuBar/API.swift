@@ -1,22 +1,65 @@
 import Foundation
 
 enum MGDiagnostics {
-    static func saveRaw(_ object: [String: Any], name: String) {
-        guard JSONSerialization.isValidJSONObject(object),
-              let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted]) else { return }
+    static var logURL: URL { MGConfig.supportDir.appendingPathComponent("diagnostics.log") }
+
+    /// Self-tests that exercise deliberate failures set this to keep the real
+    /// diagnostics log clean.
+    static var suppressWrites = false
+
+    private static func ensureDirectory() {
         try? FileManager.default.createDirectory(at: MGConfig.supportDir, withIntermediateDirectories: true)
-        try? data.write(to: MGConfig.supportDir.appendingPathComponent(name))
     }
 
-    static func append(_ message: String) {
+    /// Creates the file when missing and forces owner-only permissions.
+    /// Log files must never be readable by other users.
+    static func ensurePrivatePermissions(at url: URL) {
+        let manager = FileManager.default
+        if !manager.fileExists(atPath: url.path) {
+            manager.createFile(atPath: url.path, contents: nil,
+                               attributes: [.posixPermissions: 0o600])
+        }
+        try? manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+
+    static func saveRaw(_ object: [String: Any], name: String, directory: URL = MGConfig.supportDir) {
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted]) else { return }
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent(name)
+        do {
+            try data.write(to: url)
+            ensurePrivatePermissions(at: url)
+        } catch {
+            return
+        }
+    }
+
+    static func append(_ message: String, to url: URL? = nil) {
+        guard !suppressWrites else { return }
+        ensureDirectory()
+        let target = url ?? logURL
         let formatter = ISO8601DateFormatter()
         let line = "\(formatter.string(from: Date())) \(message)\n"
-        let url = MGConfig.supportDir.appendingPathComponent("diagnostics.log")
-        try? FileManager.default.createDirectory(at: MGConfig.supportDir, withIntermediateDirectories: true)
-        if let handle = try? FileHandle(forWritingTo: url) {
-            handle.seekToEndOfFile(); handle.write(line.data(using: .utf8) ?? Data()); try? handle.close()
+        ensurePrivatePermissions(at: target)
+        if let handle = try? FileHandle(forWritingTo: target) {
+            handle.seekToEndOfFile()
+            handle.write(line.data(using: .utf8) ?? Data())
+            try? handle.close()
         } else {
-            try? line.write(to: url, atomically: true, encoding: .utf8)
+            try? line.write(to: target, atomically: true, encoding: .utf8)
+            ensurePrivatePermissions(at: target)
+        }
+    }
+
+    /// Repairs permissions on log files written by older builds (mode 0644).
+    static func hardenExistingLogs() {
+        ensureDirectory()
+        for name in ["diagnostics.log", "pending-raw.json", "pending-last.json"] {
+            let url = MGConfig.supportDir.appendingPathComponent(name)
+            if FileManager.default.fileExists(atPath: url.path) {
+                ensurePrivatePermissions(at: url)
+            }
         }
     }
 }

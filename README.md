@@ -42,15 +42,23 @@ phone number and OTP; the session is stored only on your Mac.
         cp -R "Build/MyGate MenuBar.app" ~/Applications/
         open "$HOME/Applications/MyGate MenuBar.app"
 
-2. Enter the phone number and the OTP in the app. The session is stored at
-   `~/Library/Application Support/MyGate MenuBar/config.json` with `0600` permissions.
+2. Enter the phone number and the OTP in the app. The access key is stored in the macOS
+   Keychain (service `com.secureu.mygate`, account `access-key`). The remaining, non-secret
+   settings are stored at `~/Library/Application Support/MyGate Menu Bar/config.json` with
+   `0600` permissions. `config.json` never contains the access key.
 
 No credentials are compiled into the binary.
+
+Existing installs migrate automatically on first launch. If an older `config.json` still
+contains an `apiKey`, the app moves it to the Keychain, blanks the field in the JSON and keeps
+every other setting. If the Keychain write fails, the old JSON copy is kept so the session still
+works, and migration retries on the next launch.
 
 ## Privacy
 
 The repository contains no API keys, session tokens, phone numbers or personal photos.
-Credentials stay in Application Support on your Mac.
+The access key is kept in the macOS Keychain on your Mac. Non-secret settings and diagnostics
+stay in Application Support, and diagnostics are owner-only (`0600`).
 
 ## Limits
 

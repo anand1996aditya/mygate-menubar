@@ -105,6 +105,7 @@ enum FunctionalTest {
 enum SelfTest {
     @MainActor
     static func run() {
+        MGDiagnostics.hardenExistingLogs()
         let unitFailures = MGUnitTests.run()
         if unitFailures > 0 {
             print("UNIT_TESTS_FAILED")
@@ -290,10 +291,17 @@ enum PendingSnapshot {
 
 let app = NSApplication.shared
 nonisolated(unsafe) var appDelegate: AppDelegate?
-MainActor.assumeIsolated {
-    appDelegate = AppDelegate()
-    app.delegate = appDelegate
-    app.setActivationPolicy(.accessory)
+
+/// The app delegate is created only for the menu bar app and the demo window.
+/// Command-line modes (including --selftest) must not touch the user's session
+/// or the Keychain before their tests run.
+func startMenuBarApp() {
+    MainActor.assumeIsolated {
+        appDelegate = AppDelegate()
+        app.delegate = appDelegate
+        app.setActivationPolicy(.accessory)
+    }
+    app.run()
 }
 
 if CommandLine.arguments.contains("--history-test") {
@@ -311,7 +319,7 @@ if CommandLine.arguments.contains("--history-test") {
 } else if let index = CommandLine.arguments.firstIndex(of: "--demo-pending-window") {
     let path = CommandLine.arguments.count > index + 1 ? CommandLine.arguments[index + 1] : "/tmp/mygate-panel-window.png"
     MainActor.assumeIsolated { AppDelegate.demoCapturePath = path }
-    app.run()
+    startMenuBarApp()
 } else if CommandLine.arguments.contains("--selftest") {
     MainActor.assumeIsolated { SelfTest.run() }
 } else if let index = CommandLine.arguments.firstIndex(of: "--snapshot-pending") {
@@ -321,5 +329,5 @@ if CommandLine.arguments.contains("--history-test") {
     let path = CommandLine.arguments.count > index + 1 ? CommandLine.arguments[index + 1] : "/tmp/mygate-popover.png"
     MainActor.assumeIsolated { Snapshot.run(path: path) }
 } else {
-    app.run()
+    startMenuBarApp()
 }
