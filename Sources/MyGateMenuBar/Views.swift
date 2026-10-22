@@ -723,12 +723,12 @@ struct HistoryView: View {
                 }
             }
 
-            section("GATE LOG (24 HOURS)")
-            let log = model.history.last24Hours
+            section("GATE LOG (3 DAYS)")
+            let log = model.history.entries
             if log.isEmpty {
                 emptyRow("No gate activity recorded yet")
             } else {
-                ForEach(log.prefix(12)) { entry in
+                ForEach(log.prefix(30)) { entry in
                     HStack(spacing: 8) {
                         Image(systemName: entry.kind == .gate ? "bell.fill" : (entry.kind == .visitor ? "person.fill" : "ticket.fill"))
                             .font(.system(size: 10))

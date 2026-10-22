@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.6 — 22 Oct 2026
+
+- History screen shows the full three days that are stored, not only the last 24 hours.
+
 ## 1.2.5 — 22 Oct 2026
 
 - One field height (40 pt) for text inputs, dropdowns, cab code boxes, duration selector and action buttons.
