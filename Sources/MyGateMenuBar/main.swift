@@ -55,15 +55,13 @@ enum FunctionalTest {
                    return !passcode.isEmpty && value == passcode
                }),
                let inviteId = match["invite_id"] as? String {
-                let seekId = match["seek_id"] as? String
-                do {
-                    try await api.deleteVisit(inviteId: inviteId, seekId: seekId)
-                    print("CLEANUP deleted guest invite invite_id=\(inviteId)")
-                } catch {
-                    print("CLEANUP failed invite_id=\(inviteId) error=\(error.localizedDescription)")
-                }
+                await model.revokePass(passId: inviteId, seekId: match["seek_id"] as? String)
+                print("REVOKE msg=\(model.message)")
+                let after = (try? await api.myVisits()) ?? []
+                let stillListed = after.contains { $0.passcode == passcode }
+                print("REVOKE verified=\(!stillListed) remainingPasses=\(after.count)")
             } else {
-                print("CLEANUP no guest invite found to delete passcode=\(passcode)")
+                print("REVOKE no guest invite found passcode=\(passcode)")
             }
 
             exit(0)

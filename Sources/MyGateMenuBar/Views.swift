@@ -685,6 +685,7 @@ struct LoginCard: View {
 
 struct HistoryView: View {
     @ObservedObject var model: MGModel
+    @State private var revokeTarget: MGHistoryEntry?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -738,7 +739,7 @@ struct HistoryView: View {
                             Text(entry.title)
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .lineLimit(1)
-                            Text(entry.subtitle.isEmpty ? entry.kind.rawValue.capitalized : entry.subtitle)
+                            Text(subtitle(for: entry))
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
@@ -752,6 +753,20 @@ struct HistoryView: View {
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundStyle(.tertiary)
                         }
+                        if entry.kind == .pass, isRevocable(entry) {
+                            Button {
+                                revokeTarget = entry
+                            } label: {
+                                Text("Revoke")
+                                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.red)
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                                    .background(Color.red.opacity(0.10), in: Capsule())
+                                    .contentShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(model.busy)
+                        }
                     }
                     Divider().opacity(0.3)
                 }
@@ -764,6 +779,33 @@ struct HistoryView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear { Task { await model.loadHistory() } }
+        .confirmationDialog("Revoke this pass?", isPresented: Binding(
+            get: { revokeTarget != nil },
+            set: { if !$0 { revokeTarget = nil } }
+        ), presenting: revokeTarget) { entry in
+            Button("Revoke pass", role: .destructive) {
+                let passId = String(entry.id.dropFirst(2))
+                revokeTarget = nil
+                Task { await model.revokePass(passId: passId, seekId: nil) }
+            }
+            Button("Cancel", role: .cancel) { revokeTarget = nil }
+        } message: { _ in
+            Text("The pass will stop working immediately.")
+        }
+    }
+
+    private func subtitle(for entry: MGHistoryEntry) -> String {
+        let base = entry.subtitle.isEmpty ? entry.kind.rawValue.capitalized : entry.subtitle
+        if let passcode = entry.passcode, !passcode.isEmpty {
+            return "Code \(passcode) · \(base)"
+        }
+        return base
+    }
+
+    private func isRevocable(_ entry: MGHistoryEntry) -> Bool {
+        let status = entry.status.lowercased()
+        return !status.contains("expired") && !status.contains("revoked")
+            && !status.contains("denied") && !status.contains("cleared")
     }
 
     private func section(_ title: String) -> some View {

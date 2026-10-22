@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0 — 22 Oct 2026
+
+- Active guest passes can be revoked from the History screen, with a confirmation.
+- Revoked passes disappear from MyGate immediately and are marked Revoked locally.
+- Guest invites in history are labelled "Guest invite" instead of the owner name.
+
 ## 1.2.7 — 22 Oct 2026
 
 - Guest invites now appear as "Guest invite" in history instead of the owner name.

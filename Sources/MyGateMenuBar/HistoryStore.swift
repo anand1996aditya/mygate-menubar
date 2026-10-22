@@ -138,6 +138,12 @@ final class MGHistoryStore: ObservableObject {
         if changed { save() }
     }
 
+    func updateStatus(id: String, status: String) {
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
+        entries[index].status = status
+        save()
+    }
+
     func recordPass(id: String, title: String, status: String, timeText: String, detail: String,
                     passcode: String? = nil) {
         let entry = MGHistoryEntry(

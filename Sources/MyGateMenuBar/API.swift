@@ -70,6 +70,7 @@ struct MGPass: Identifiable, Equatable {
     var timeText: String
     var detail: String
     var isToday: Bool
+    var seekId: String? = nil
 }
 
 struct MGPreApproveInfo {
@@ -202,7 +203,8 @@ struct MGAPI {
                 isToday = Calendar.current.isDateInToday(Date(timeIntervalSince1970: stamp))
             } else { isToday = true }
             return MGPass(id: id, title: title, status: status, statusColor: color,
-                          passcode: passcode, timeText: timeText, detail: detail, isToday: isToday)
+                          passcode: passcode, timeText: timeText, detail: detail, isToday: isToday,
+                          seekId: item["seek_id"] as? String)
         }
     }
 

@@ -267,6 +267,22 @@ final class MGModel: ObservableObject {
         }
     }
 
+    func revokePass(passId: String, seekId: String?) async {
+        guard phase == .loggedIn else { return }
+        busy = true; message = ""
+        defer { busy = false }
+        do {
+            try await MGAPI(config: config).deleteVisit(inviteId: passId, seekId: seekId)
+            MGDiagnostics.append("pass revoked id=\(passId)")
+            history.updateStatus(id: "p:\(passId)", status: "Revoked")
+            message = "Pass revoked"
+            await loadHistory()
+        } catch {
+            MGDiagnostics.append("pass revoke failed id=\(passId) error=\(error.localizedDescription)")
+            message = "Revoke failed: \(error.localizedDescription)"
+        }
+    }
+
     func loadHistory() async {
         guard phase == .loggedIn else { return }
         let api = MGAPI(config: config)
