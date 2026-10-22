@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.4 — 22 Oct 2026
+
+- Dropdown placeholders use the same light gray as text-field placeholders.
+- Selected dropdown values stay in primary white.
+
 ## 1.2.3 — 22 Oct 2026
 
 - Action button and duration selector share the same 40 pt height and capsule structure.

@@ -385,7 +385,8 @@ struct PreApprovalSection: View {
             dropdown(title: name.isEmpty ? "Select delivery company" : name,
                      options: model.companies,
                      onPick: { name = $0 },
-                     searchable: true)
+                     searchable: true,
+                     isPlaceholder: name.isEmpty)
         case .cab:
             CabCodeField(code: $vehicle)
         case .visitingHelp:
@@ -395,7 +396,8 @@ struct PreApprovalSection: View {
                              helpTypeId = match.typeId
                          }
                          name = picked
-                     })
+                     },
+                     isPlaceholder: name.isEmpty)
         }
     }
 
@@ -430,12 +432,14 @@ struct PreApprovalSection: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func dropdown(title: String, options: [String], onPick: @escaping (String) -> Void, searchable: Bool = false) -> some View {
+    private func dropdown(title: String, options: [String], onPick: @escaping (String) -> Void,
+                          searchable: Bool = false, isPlaceholder: Bool) -> some View {
         PopupField(options: options, onPick: onPick) {
             HStack {
                 Text(options.isEmpty ? "Loading…" : title)
                     .font(.system(size: 12, design: .rounded))
-                    .foregroundStyle(options.isEmpty ? .tertiary : .primary)
+                    .foregroundStyle(options.isEmpty ? Color.secondary.opacity(0.7)
+                                     : (isPlaceholder ? Color.secondary : Color.primary))
                     .lineLimit(1)
                 Spacer()
                 Image(systemName: "chevron.down")
