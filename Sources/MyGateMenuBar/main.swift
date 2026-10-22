@@ -1,6 +1,78 @@
 import AppKit
 import SwiftUI
 
+enum FunctionalTest {
+    @MainActor
+    static func run() {
+        Task { @MainActor in
+            guard let config = MGConfig.load(), config.isLoggedIn else {
+                print("FUNCTIONAL FAIL no session")
+                exit(1)
+            }
+            let model = MGModel()
+            model.phase = .loggedIn
+            let api = MGAPI(config: model.config)
+
+            func passes() async -> [String] {
+                ((try? await api.myVisits()) ?? []).map { "\($0.title) [\($0.status)]" }
+            }
+
+            print("BEFORE passes=\((await passes()).joined(separator: "; "))")
+
+            let delivery = await model.createPreApproval(type: .delivery, name: "SWIGGY",
+                                                         vehicle: "", phone: "", helpTypeId: nil, hours: 1)
+            print("DELIVERY created=\(delivery) msg=\(model.message)")
+            print("AFTER-DELIVERY passes=\((await passes()).joined(separator: "; "))")
+
+            let cab = await model.createPreApproval(type: .cab, name: "",
+                                                    vehicle: "1234", phone: "", helpTypeId: nil, hours: 1)
+            print("CAB created=\(cab) msg=\(model.message)")
+
+            let help = await model.createPreApproval(type: .visitingHelp, name: "Home repair",
+                                                     vehicle: "", phone: "", helpTypeId: "939", hours: 1)
+            print("HELP created=\(help) msg=\(model.message)")
+
+            let guest = await model.createPreApproval(type: .guest, name: "Automation Test",
+                                                      vehicle: "", phone: config.phone,
+                                                      helpTypeId: nil, hours: 1)
+            print("GUEST created=\(guest) msg=\(model.message)")
+            print("AFTER-GUEST passes=\((await passes()).joined(separator: "; "))")
+
+            await model.loadHistory()
+            print("HISTORY stored=\(model.history.entries.count)")
+            for entry in model.history.entries.prefix(8) {
+                print("  log: \(entry.kind.rawValue) \(entry.title) \(entry.status)")
+            }
+
+            var passcode = ""
+            if let range = model.message.range(of: "passcode ") {
+                passcode = model.message[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            if let raw = try? await api.myVisitsRaw(),
+               let visits = raw["seeker_visits"] as? [[String: Any]],
+               let match = visits.first(where: { item in
+                   let value = item["passcode"] as? String ?? String(describing: item["passcode"] ?? "")
+                   return !passcode.isEmpty && value == passcode
+               }),
+               let inviteId = match["invite_id"] as? String {
+                let seekId = match["seek_id"] as? String
+                do {
+                    try await api.deleteVisit(inviteId: inviteId, seekId: seekId)
+                    print("CLEANUP deleted guest invite invite_id=\(inviteId)")
+                } catch {
+                    print("CLEANUP failed invite_id=\(inviteId) error=\(error.localizedDescription)")
+                }
+            } else {
+                print("CLEANUP no guest invite found to delete passcode=\(passcode)")
+            }
+
+            exit(0)
+        }
+        RunLoop.main.run()
+        exit(3)
+    }
+}
+
 enum SelfTest {
     @MainActor
     static func run() {
@@ -195,7 +267,9 @@ MainActor.assumeIsolated {
     app.setActivationPolicy(.accessory)
 }
 
-if let index = CommandLine.arguments.firstIndex(of: "--snapshot-forms") {
+if CommandLine.arguments.contains("--functional-test") {
+    MainActor.assumeIsolated { FunctionalTest.run() }
+} else if let index = CommandLine.arguments.firstIndex(of: "--snapshot-forms") {
     let prefix = CommandLine.arguments.count > index + 1 ? CommandLine.arguments[index + 1] : "/tmp/mygate-form"
     MainActor.assumeIsolated { FormSnapshot.run(prefix: prefix) }
 } else if CommandLine.arguments.contains("--selftest-history") {

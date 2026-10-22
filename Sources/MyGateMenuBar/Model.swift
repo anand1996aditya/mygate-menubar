@@ -283,8 +283,10 @@ final class MGModel: ObservableObject {
         }
         history.markVisitorsLeft(except: currentKeys)
         for pass in passes {
-            history.recordPass(id: pass.id, title: pass.title, status: pass.status,
-                               timeText: pass.timeText, detail: pass.detail)
+            let title = pass.title == config.name ? "Guest invite" : pass.title
+            history.recordPass(id: pass.id, title: title, status: pass.status,
+                               timeText: pass.timeText, detail: pass.detail,
+                               passcode: pass.passcode)
         }
         MGDiagnostics.append("history visitors=\(visitors.count) passes=\(passes.count) stored=\(history.entries.count)")
     }

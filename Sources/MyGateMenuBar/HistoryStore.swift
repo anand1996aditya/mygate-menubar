@@ -138,7 +138,8 @@ final class MGHistoryStore: ObservableObject {
         if changed { save() }
     }
 
-    func recordPass(id: String, title: String, status: String, timeText: String, detail: String) {
+    func recordPass(id: String, title: String, status: String, timeText: String, detail: String,
+                    passcode: String? = nil) {
         let entry = MGHistoryEntry(
             id: "p:\(id)",
             kind: .pass,
@@ -148,7 +149,7 @@ final class MGHistoryStore: ObservableObject {
             timeText: timeText,
             timestamp: Date(),
             photoURL: nil,
-            passcode: nil
+            passcode: passcode
         )
         upsert(entry)
     }

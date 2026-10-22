@@ -164,6 +164,17 @@ struct MGAPI {
         }
     }
 
+    func myVisitsRaw() async throws -> [String: Any] {
+        let query = "?userid=\(config.userId)&flatid=\(config.flatId)&societyid=\(config.societyId)&pageNo=0&version=2"
+        return try await request("https://app.mygate.in/seekinvite/v1/myvisits" + query, body: [:], method: "GET")
+    }
+
+    func deleteVisit(inviteId: String, seekId: String?) async throws {
+        var body: [String: Any] = ["userid": config.userId, "invite_id": inviteId]
+        if let seekId, !seekId.isEmpty { body["seek_id"] = seekId }
+        _ = try await request("https://app.mygate.in/seekinvite/v1/myvisits", body: body, method: "DELETE")
+    }
+
     func myVisits() async throws -> [MGPass] {
         let query = "?userid=\(config.userId)&flatid=\(config.flatId)&societyid=\(config.societyId)&pageNo=0&version=2"
         let object = try await request("https://app.mygate.in/seekinvite/v1/myvisits" + query, body: [:], method: "GET")

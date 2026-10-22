@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.7 — 22 Oct 2026
+
+- Guest invites now appear as "Guest invite" in history instead of the owner name.
+- Adds a live functional test mode for pre-approvals, invites and passes.
+
 ## 1.2.6 — 22 Oct 2026
 
 - History screen shows the full three days that are stored, not only the last 24 hours.
