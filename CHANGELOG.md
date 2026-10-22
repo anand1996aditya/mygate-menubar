@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.5 — 22 Oct 2026
+
+- One field height (40 pt) for text inputs, dropdowns, cab code boxes, duration selector and action buttons.
+- Placeholder text is light gray everywhere; chosen values are white.
+
 ## 1.2.4 — 22 Oct 2026
 
 - Dropdown placeholders use the same light gray as text-field placeholders.

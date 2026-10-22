@@ -1,6 +1,8 @@
 import SwiftUI
 import AppKit
 
+private let MGFieldHeight: CGFloat = 40
+
 private enum Brand {
     static let yellow = Color(red: 1.00, green: 0.79, blue: 0.00)
     static let ink = Color(white: 0.10)
@@ -338,7 +340,7 @@ struct PreApprovalSection: View {
                                 .font(.system(size: 11, weight: .bold, design: .rounded))
                                 .foregroundStyle(Brand.ink)
                                 .padding(.horizontal, 16)
-                                .frame(height: 40)
+                                .frame(height: MGFieldHeight)
                                 .background(Brand.yellow.opacity(canSubmit ? 1 : 0.45), in: Capsule())
                                 .contentShape(Capsule())
                         }
@@ -427,9 +429,10 @@ struct PreApprovalSection: View {
                     .font(.system(size: 12, design: .rounded))
             }
         }
-        .padding(.horizontal, 12).padding(.vertical, 9)
-        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
+        .frame(height: MGFieldHeight)
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private func dropdown(title: String, options: [String], onPick: @escaping (String) -> Void,
@@ -447,7 +450,7 @@ struct PreApprovalSection: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 12)
-            .frame(height: 40)
+            .frame(height: MGFieldHeight)
             .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
@@ -461,14 +464,18 @@ struct PreApprovalSection: View {
             if let index = titles.firstIndex(of: picked) { hours = values[index] }
         }) {
             HStack(spacing: 6) {
-                Image(systemName: "clock").font(.system(size: 10))
+                Image(systemName: "clock")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
                 Text(hours == 24 ? "24 hours" : "\(hours) hour\(hours == 1 ? "" : "s")")
                     .font(.system(size: 11, weight: .medium, design: .rounded))
-                Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.secondary)
             }
-            .foregroundStyle(.secondary)
             .padding(.horizontal, 12)
-            .frame(height: 40)
+            .frame(height: MGFieldHeight)
             .background(Color.secondary.opacity(0.08), in: Capsule())
             .contentShape(Capsule())
         }
@@ -535,7 +542,7 @@ struct CabCodeField: View {
         return Text(character)
             .font(.system(size: 18, weight: .semibold, design: .monospaced))
             .frame(maxWidth: .infinity)
-            .frame(height: 42)
+            .frame(height: MGFieldHeight)
             .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -636,13 +643,15 @@ struct LoginCard: View {
                 Text(placeholder).font(.system(size: 13, design: .rounded)).foregroundStyle(.tertiary)
                 Spacer()
             }
-            .padding(12)
+            .padding(.horizontal, 12)
+            .frame(height: MGFieldHeight)
             .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         } else {
             TextField(placeholder, text: text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, design: .rounded))
-                .padding(12)
+                .padding(.horizontal, 12)
+                .frame(height: MGFieldHeight)
                 .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
     }
