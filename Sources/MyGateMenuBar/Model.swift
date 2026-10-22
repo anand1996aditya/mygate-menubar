@@ -326,6 +326,8 @@ final class MGModel: ObservableObject {
         phase = .loggedOut
         pending = nil
         seenValidationId = nil
+        lastPendingId = nil
+        onPendingCleared?()
         message = "Signed out"
     }
 
