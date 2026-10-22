@@ -241,20 +241,23 @@ final class MGModel: ObservableObject {
     func loadHistory() async {
         guard phase == .loggedIn else { return }
         let api = MGAPI(config: config)
-        if let visitors = try? await api.currentVisitors() {
-            historyVisitors = visitors
-            for visitor in visitors {
-                history.recordVisitor(name: visitor.name, type: visitor.type,
-                                      passcode: visitor.passcode, photoURL: visitor.photoURL?.absoluteString)
-            }
+        let visitors = (try? await api.currentVisitors()) ?? []
+        let passes = (try? await api.myVisits()) ?? []
+        historyVisitors = visitors
+        historyPasses = passes
+        var currentKeys = Set<String>()
+        for visitor in visitors {
+            let key = "v:\(visitor.name.lowercased())|\(visitor.type.lowercased())|\(MGHistoryStore.dayKey())"
+            currentKeys.insert(key)
+            history.recordVisitor(name: visitor.name, type: visitor.type,
+                                  passcode: visitor.passcode, photoURL: visitor.photoURL?.absoluteString)
         }
-        if let passes = try? await api.myVisits() {
-            historyPasses = passes
-            for pass in passes {
-                history.recordPass(id: pass.id, title: pass.title, status: pass.status,
-                                   timeText: pass.timeText, detail: pass.detail)
-            }
+        history.markVisitorsLeft(except: currentKeys)
+        for pass in passes {
+            history.recordPass(id: pass.id, title: pass.title, status: pass.status,
+                               timeText: pass.timeText, detail: pass.detail)
         }
+        MGDiagnostics.append("history visitors=\(visitors.count) passes=\(passes.count) stored=\(history.entries.count)")
     }
 
     func loadPreApproveLists() async {
