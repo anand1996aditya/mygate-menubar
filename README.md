@@ -1,5 +1,7 @@
 # MyGate MenuBar
 
+![MyGate MenuBar](docs/mygate-menubar.png)
+
 A small macOS menu bar app for MyGate residents. It shows pending visitor approvals at the gate
 and lets you approve or deny them without opening the phone app.
 
