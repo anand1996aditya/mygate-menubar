@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.1 — 22 Oct 2026
+
+- Delivery dropdown gains "Others (any delivery)", so a courier from an unlisted company can still be pre-approved.
+- Unknown-company pre-approvals are sent as a generic DELIVERY address and verified live.
+
 ## 1.3.0 — 22 Oct 2026
 
 - Active guest passes can be revoked from the History screen, with a confirmation.

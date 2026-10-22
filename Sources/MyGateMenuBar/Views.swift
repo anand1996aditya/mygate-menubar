@@ -385,7 +385,7 @@ struct PreApprovalSection: View {
             }
         case .delivery:
             dropdown(title: name.isEmpty ? "Select delivery company" : name,
-                     options: model.companies,
+                     options: MGModel.deliveryOptions(model.companies),
                      onPick: { name = $0 },
                      searchable: true,
                      isPlaceholder: name.isEmpty)

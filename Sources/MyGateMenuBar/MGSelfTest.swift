@@ -50,6 +50,11 @@ enum MGUnitTests {
         check(MGModel.PreApprovalType.cab.actionTitle == "Pre-approve", "cab label")
         check(MGModel.PreApprovalType.visitingHelp.actionTitle == "Pre-approve", "help label")
 
+        // Other delivery mapping
+        check(MGModel.deliveryAddress(MGModel.otherDeliveryOption) == "DELIVERY", "other delivery maps to DELIVERY")
+        check(MGModel.deliveryOptions(["AMAZON"]).first == MGModel.otherDeliveryOption, "other delivery listed first")
+        check(MGModel.deliveryAddress("swiggy") == "SWIGGY", "named delivery uppercased")
+
         // Default delivery companies
         let companies = MGModel.defaultDeliveryCompanies
         check(companies.contains("BLINKIT"), "default has Blinkit")

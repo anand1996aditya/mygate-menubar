@@ -18,6 +18,24 @@ final class MGModel: ObservableObject {
     @Published var historyPasses: [MGPass] = []
     let history = MGHistoryStore.shared
 
+    static let otherDeliveryOption = "OTHERS (ANY DELIVERY)"
+
+    static func deliveryOptions(_ companies: [String]) -> [String] {
+        var options = companies
+        if !options.contains(otherDeliveryOption) {
+            options.insert(otherDeliveryOption, at: 0)
+        }
+        return options
+    }
+
+    static func deliveryAddress(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.uppercased().contains("OTHERS") || trimmed.uppercased().contains("ANY DELIVERY") {
+            return "DELIVERY"
+        }
+        return trimmed.uppercased()
+    }
+
     static let defaultDeliveryCompanies = [
         "AMAZON", "BIGBASKET", "BLINKIT", "DOMINOS PIZZA", "FLIPKART", "INSTAMART",
         "SWIGGY", "ZEPTO", "ZOMATO"
@@ -255,7 +273,8 @@ final class MGModel: ObservableObject {
             case .guest:
                 message = try await api.inviteGuest(name: trimmedName, mobile: MGModel.normalizePhone(phone), start: now, end: end)
             default:
-                try await api.preApprove(type: type, name: trimmedName,
+                let addressName = type == .delivery ? MGModel.deliveryAddress(trimmedName) : trimmedName
+                try await api.preApprove(type: type, name: addressName,
                                          vehicle: MGModel.normalizeCabDigits(vehicle),
                                          userTypeId: helpTypeId, start: now, end: end)
                 message = "Pre-approved \(type.label) for \(hours)h"

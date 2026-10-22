@@ -19,7 +19,7 @@ enum FunctionalTest {
 
             print("BEFORE passes=\((await passes()).joined(separator: "; "))")
 
-            let delivery = await model.createPreApproval(type: .delivery, name: "SWIGGY",
+            let delivery = await model.createPreApproval(type: .delivery, name: MGModel.otherDeliveryOption,
                                                          vehicle: "", phone: "", helpTypeId: nil, hours: 1)
             print("DELIVERY created=\(delivery) msg=\(model.message)")
             print("AFTER-DELIVERY passes=\((await passes()).joined(separator: "; "))")
