@@ -91,8 +91,15 @@ struct PopoverView: View {
     private func createPreApproval() {
         guard let type = selectedType else { return }
         Task {
-            await model.createPreApproval(type: type, name: name, vehicle: vehicle,
-                                          phone: guestPhone, helpTypeId: helpTypeId, hours: hours)
+            let created = await model.createPreApproval(type: type, name: name, vehicle: vehicle,
+                                                        phone: guestPhone, helpTypeId: helpTypeId, hours: hours)
+            if created {
+                selectedType = nil
+                name = ""
+                guestPhone = ""
+                vehicle = ""
+                helpTypeId = nil
+            }
         }
     }
 
@@ -141,22 +148,37 @@ struct PopoverView: View {
             }
             Spacer()
             if model.phase == .loggedIn {
-                Text(showHistory ? "Home" : "History")
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .onTapGesture {
-                        showHistory.toggle()
-                        if showHistory { Task { await model.loadHistory() } }
+                Button {
+                    showHistory.toggle()
+                    if showHistory { Task { await model.loadHistory() } }
+                } label: {
+                    Text(showHistory ? "Home" : "History")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                Button {
+                    Task {
+                        await model.checkPending()
+                        await model.loadHistory()
                     }
-                Button { Task { await model.checkPending() } } label: {
+                } label: {
                     Image(systemName: "arrow.clockwise").font(.system(size: 11, weight: .medium))
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                Text("Sign out")
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .onTapGesture { model.signOut() }
+                .disabled(model.busy)
+                Button {
+                    model.signOut()
+                } label: {
+                    Text("Sign out")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 9)
@@ -340,7 +362,7 @@ struct PreApprovalSection: View {
         guard let selected else { return false }
         switch selected {
         case .guest:
-            return !name.trimmingCharacters(in: .whitespaces).isEmpty && guestPhone.filter(\.isNumber).count >= 10
+            return !name.trimmingCharacters(in: .whitespaces).isEmpty && MGModel.normalizePhone(guestPhone).count == 10
         case .delivery:
             return !name.trimmingCharacters(in: .whitespaces).isEmpty
         case .cab:
@@ -355,7 +377,7 @@ struct PreApprovalSection: View {
         case .guest:
             HStack(spacing: 8) {
                 textField("Guest name", text: $name)
-                textField("Mobile number", text: $guestPhone)
+                guestMobileField
             }
         case .delivery:
             dropdown(title: name.isEmpty ? "Select delivery company" : name,
@@ -373,6 +395,14 @@ struct PreApprovalSection: View {
                          name = picked
                      })
         }
+    }
+
+    private var guestMobileField: some View {
+        let filtered = Binding(
+            get: { guestPhone },
+            set: { guestPhone = MGModel.normalizePhone($0) }
+        )
+        return textField("Mobile number", text: filtered)
     }
 
     private var helpTitle: String {
@@ -450,24 +480,28 @@ struct PreApprovalSection: View {
 
     private func tile(_ type: MGModel.PreApprovalType) -> some View {
         let isSelected = selected == type
-        return VStack(spacing: 5) {
-            ZStack {
-                Circle().fill(isSelected ? Brand.yellow : Color.secondary.opacity(0.08)).frame(width: 36, height: 36)
-                Image(systemName: type.symbol)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(isSelected ? Brand.ink : .secondary)
-            }
-            Text(type.label)
-                .font(.system(size: 9, weight: isSelected ? .semibold : .regular, design: .rounded))
-                .foregroundStyle(isSelected ? .primary : .secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .contentShape(Rectangle())
-        .onTapGesture {
+        return Button {
             selected = isSelected ? nil : type
-            if type != .visitingHelp { helpTypeId = nil }
-            if type == .cab { vehicle = "" } else if type != .delivery && type != .visitingHelp { name = "" }
+            name = ""
+            guestPhone = ""
+            vehicle = ""
+            helpTypeId = nil
+        } label: {
+            VStack(spacing: 5) {
+                ZStack {
+                    Circle().fill(isSelected ? Brand.yellow : Color.secondary.opacity(0.08)).frame(width: 36, height: 36)
+                    Image(systemName: type.symbol)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(isSelected ? Brand.ink : .secondary)
+                }
+                Text(type.label)
+                    .font(.system(size: 9, weight: isSelected ? .semibold : .regular, design: .rounded))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -533,17 +567,28 @@ struct LoginCard: View {
                     .multilineTextAlignment(.center)
             }
             if model.phase == .otpSent {
-                input("OTP", text: $otp)
+                digitsInput("OTP", text: $otp, limit: 6)
                 HStack(spacing: 8) {
-                    primaryButton("Verify", action: { Task { await model.verifyOTP(otp) } })
-                    Text("Resend")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .onTapGesture { Task { await model.sendOTP(phone: model.config.phone) } }
+                    primaryButton("Verify", enabled: otp.count == 6 && !model.busy) {
+                        Task { await model.verifyOTP(otp) }
+                    }
+                    Button {
+                        Task { await model.sendOTP(phone: model.config.phone) }
+                    } label: {
+                        Text("Resend")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 10)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(model.busy)
                 }
             } else {
-                input("Mobile number", text: $phone)
-                primaryButton("Send OTP", action: { Task { await model.sendOTP(phone: phone) } })
+                digitsInput("Mobile number", text: $phone, limit: 10)
+                primaryButton("Send OTP", enabled: phone.count == 10 && !model.busy) {
+                    Task { await model.sendOTP(phone: phone) }
+                }
             }
             if !model.message.isEmpty {
                 Text(model.message)
@@ -574,14 +619,30 @@ struct LoginCard: View {
         }
     }
 
-    private func primaryButton(_ title: String, action: @escaping () -> Void) -> some View {
-        Text(title)
-            .font(.system(size: 12, weight: .bold, design: .rounded))
-            .foregroundStyle(Brand.ink)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(Brand.yellow, in: Capsule())
-            .onTapGesture(perform: action)
+    private func primaryButton(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(Brand.ink)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Brand.yellow.opacity(enabled ? 1 : 0.4), in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+    }
+
+    @ViewBuilder private func digitsInput(_ placeholder: String, text: Binding<String>, limit: Int) -> some View {
+        let filtered = Binding(
+            get: { text.wrappedValue },
+            set: { raw in
+                text.wrappedValue = limit == 10
+                    ? MGModel.normalizePhone(raw)
+                    : String(raw.filter(\.isNumber).prefix(limit))
+            }
+        )
+        input(placeholder, text: filtered)
     }
 }
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1 — 22 Oct 2026
+
+- Phone, OTP and cab fields accept digits only and stop at their limits.
+- Phone numbers accept +91, leading zero and spaced formats and normalise to 10 digits.
+- Guest mobile requires exactly 10 digits; OTP verify requires 6 digits.
+- Form fields clear when switching tabs or after a successful pre-approval.
+- Footer buttons are real buttons; refresh also reloads history.
+
 ## 1.2.0 — 22 Oct 2026
 
 - Cab pre-approval uses a four-box code field and stops at four digits.

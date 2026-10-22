@@ -36,6 +36,14 @@ enum MGUnitTests {
         check(MGModel.normalizeCabDigits("9999") == "9999", "cab exact four")
         check(MGModel.normalizeCabDigits("123") == "123", "cab shorter allowed")
 
+        // Phone and OTP normalisation
+        check(MGModel.normalizePhone("+91 98765 43210") == "9876543210", "phone strips country code")
+        check(MGModel.normalizePhone("09876543210") == "9876543210", "phone strips leading zero")
+        check(MGModel.normalizePhone("98765abc43210") == "9876543210", "phone strips letters")
+        check(MGModel.normalizePhone("98765") == "98765", "phone short stays for validation")
+        check(MGModel.normalizeOTP("12a34567") == "123456", "otp digits and six cap")
+        check(MGModel.normalizeOTP("1234") == "1234", "otp short stays for validation")
+
         // Button labels
         check(MGModel.PreApprovalType.guest.actionTitle == "Send invite", "guest label")
         check(MGModel.PreApprovalType.delivery.actionTitle == "Pre-approve", "delivery label")

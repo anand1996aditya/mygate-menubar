@@ -71,26 +71,28 @@ final class MGModel: ObservableObject {
     }
 
     func sendOTP(phone: String) async {
-        guard !phone.isEmpty else { message = "Enter the mobile number"; return }
+        let number = MGModel.normalizePhone(phone)
+        guard number.count == 10 else { message = "Enter a 10-digit mobile number"; return }
         busy = true; message = ""
         defer { busy = false }
         do {
-            _ = try await MGAPI.validate(config, phone: phone)
-            config.phone = phone
+            _ = try await MGAPI.validate(config, phone: number)
+            config.phone = number
             config.save()
             phase = .otpSent
-            message = "OTP sent to \(phone)"
+            message = "OTP sent to \(number)"
         } catch {
             message = "Could not send OTP: \(error.localizedDescription)"
         }
     }
 
     func verifyOTP(_ otp: String) async {
-        guard !otp.isEmpty else { message = "Enter the OTP"; return }
+        let code = MGModel.normalizeOTP(otp)
+        guard code.count == 6 else { message = "Enter the 6-digit OTP"; return }
         busy = true; message = ""
         defer { busy = false }
         do {
-            let (apiKey, userId) = try await MGAPI.login(config, phone: config.phone, otp: otp)
+            let (apiKey, userId) = try await MGAPI.login(config, phone: config.phone, otp: code)
             config.apiKey = apiKey
             config.userId = userId
             let profile = try await MGAPI.profile(config)
@@ -184,6 +186,17 @@ final class MGModel: ObservableObject {
         String(raw.filter(\.isNumber).prefix(4))
     }
 
+    static func normalizePhone(_ raw: String) -> String {
+        var digits = raw.filter(\.isNumber)
+        if digits.count == 12 && digits.hasPrefix("91") { digits = String(digits.dropFirst(2)) }
+        if digits.count == 11 && digits.hasPrefix("0") { digits = String(digits.dropFirst()) }
+        return String(digits.prefix(10))
+    }
+
+    static func normalizeOTP(_ raw: String) -> String {
+        String(raw.filter(\.isNumber).prefix(6))
+    }
+
     enum PreApprovalType: String, CaseIterable, Identifiable {
         case guest, delivery, cab, visitingHelp
         var id: String { rawValue }
@@ -217,8 +230,21 @@ final class MGModel: ObservableObject {
         }
     }
 
+    @discardableResult
     func createPreApproval(type: PreApprovalType, name: String, vehicle: String,
-                           phone: String, helpTypeId: String?, hours: Int) async {
+                           phone: String, helpTypeId: String?, hours: Int) async -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch type {
+        case .guest:
+            guard !trimmedName.isEmpty else { message = "Enter the guest name"; return false }
+            guard MGModel.normalizePhone(phone).count == 10 else { message = "Enter a 10-digit mobile number"; return false }
+        case .delivery:
+            guard !trimmedName.isEmpty else { message = "Select a delivery company"; return false }
+        case .cab:
+            guard MGModel.normalizeCabDigits(vehicle).count == 4 else { message = "Enter the last four digits of the cab number"; return false }
+        case .visitingHelp:
+            guard !trimmedName.isEmpty, helpTypeId != nil else { message = "Select a visiting help category"; return false }
+        }
         busy = true; message = ""
         defer { busy = false }
         let api = MGAPI(config: config)
@@ -227,14 +253,17 @@ final class MGModel: ObservableObject {
         do {
             switch type {
             case .guest:
-                message = try await api.inviteGuest(name: name, mobile: phone, start: now, end: end)
+                message = try await api.inviteGuest(name: trimmedName, mobile: MGModel.normalizePhone(phone), start: now, end: end)
             default:
-                try await api.preApprove(type: type, name: name, vehicle: vehicle,
+                try await api.preApprove(type: type, name: trimmedName,
+                                         vehicle: MGModel.normalizeCabDigits(vehicle),
                                          userTypeId: helpTypeId, start: now, end: end)
                 message = "Pre-approved \(type.label) for \(hours)h"
             }
+            return true
         } catch {
             message = "Pre-approval failed: \(error.localizedDescription)"
+            return false
         }
     }
 
