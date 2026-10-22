@@ -10,8 +10,10 @@ and lets you approve or deny them without opening the phone app.
 - Live pending approval check, refreshed every two seconds.
 - Visitor popup with the gate photo, visitor type, gate and flat details.
 - Approve or deny with one click.
-- Recent visitor history: who is inside now, plus today's passes and their status.
-- Pre-approvals: delivery company, cab, guest invite and visiting help.
+- Recent visitor history: who is inside now, plus a scrollable three-day log.
+- The log imports MyGate's own activity feed, so it matches what the phone shows.
+- Pre-approvals: delivery company (including an "Others (any delivery)" option), cab, guest invite and visiting help.
+- Cancel guest passes and pre-approvals from History.
 - Branded menu bar icon and popover.
 
 ## How it works
