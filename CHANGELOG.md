@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2 — 22 Oct 2026
+
+- Delivery company and duration fields share one fixed 40 pt height.
+- Custom popup menus replace SwiftUI menus so both fields match exactly.
+
 ## 1.2.1 — 22 Oct 2026
 
 - Phone, OTP and cab fields accept digits only and stop at their limits.

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 private enum Brand {
     static let yellow = Color(red: 1.00, green: 0.79, blue: 0.00)
@@ -429,17 +430,9 @@ struct PreApprovalSection: View {
     }
 
     private func dropdown(title: String, options: [String], onPick: @escaping (String) -> Void, searchable: Bool = false) -> some View {
-        Menu {
-            if options.isEmpty {
-                Text("Loading…")
-            } else {
-                ForEach(options, id: \.self) { option in
-                    Button(option) { onPick(option) }
-                }
-            }
-        } label: {
+        PopupField(options: options, onPick: onPick) {
             HStack {
-                Text(title)
+                Text(options.isEmpty ? "Loading…" : title)
                     .font(.system(size: 12, design: .rounded))
                     .foregroundStyle(options.isEmpty ? .tertiary : .primary)
                     .lineLimit(1)
@@ -448,21 +441,20 @@ struct PreApprovalSection: View {
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 12).padding(.vertical, 9)
-            .frame(height: 38)
+            .padding(.horizontal, 12)
+            .frame(height: 40)
             .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
         .frame(maxWidth: .infinity)
     }
 
     private var durationMenu: some View {
-        Menu {
-            ForEach([1, 2, 4, 8, 12, 24], id: \.self) { value in
-                Button(value == 24 ? "24 hours" : "\(value) hour\(value == 1 ? "" : "s")") { hours = value }
-            }
-        } label: {
+        let values = [1, 2, 4, 8, 12, 24]
+        let titles = values.map { $0 == 24 ? "24 hours" : "\($0) hour\($0 == 1 ? "" : "s")" }
+        return PopupField(options: titles, onPick: { picked in
+            if let index = titles.firstIndex(of: picked) { hours = values[index] }
+        }) {
             HStack(spacing: 6) {
                 Image(systemName: "clock").font(.system(size: 10))
                 Text(hours == 24 ? "24 hours" : "\(hours) hour\(hours == 1 ? "" : "s")")
@@ -471,11 +463,10 @@ struct PreApprovalSection: View {
             }
             .foregroundStyle(.secondary)
             .padding(.horizontal, 12)
-            .frame(height: 38)
+            .frame(height: 40)
             .background(Color.secondary.opacity(0.08), in: Capsule())
+            .contentShape(Capsule())
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
     }
 
     private func tile(_ type: MGModel.PreApprovalType) -> some View {
@@ -546,6 +537,38 @@ struct CabCodeField: View {
                     .stroke(isNext ? Brand.orange : Color.secondary.opacity(0.15),
                             lineWidth: isNext ? 1.5 : 1)
             )
+    }
+}
+
+final class PopupMenuAction: NSObject {
+    var handler: ((String) -> Void)?
+    @objc func fire(_ sender: NSMenuItem) {
+        if let value = sender.representedObject as? String { handler?(value) }
+    }
+}
+
+struct PopupField<Label: View>: View {
+    let options: [String]
+    let onPick: (String) -> Void
+    @ViewBuilder var label: () -> Label
+    @State private var action = PopupMenuAction()
+
+    var body: some View {
+        Button {
+            guard !options.isEmpty else { return }
+            action.handler = onPick
+            let menu = NSMenu()
+            for option in options {
+                let item = NSMenuItem(title: option, action: #selector(PopupMenuAction.fire(_:)), keyEquivalent: "")
+                item.target = action
+                item.representedObject = option
+                menu.addItem(item)
+            }
+            menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+        } label: {
+            label()
+        }
+        .buttonStyle(.plain)
     }
 }
 
