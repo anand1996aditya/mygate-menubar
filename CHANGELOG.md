@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.2 — 23 Oct 2026
+## 1.4.3 — 23 Oct 2026
 
 - Visitor alert panel is now a compact card with a thumbnail, not a full-screen photo.
 - The panel has a close button, auto-closes after five minutes, and closes on screen change.
