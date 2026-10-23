@@ -1,6 +1,11 @@
 # Changelog
 
-## 1.4.4 — 23 Oct 2026
+## 1.4.5 — 23 Oct 2026
+
+- Visitor photo now uses the same 46 x 46 point thumbnail as the Urban Company app.
+- Large 3000 x 4000 photos are downscaled before layout; buttons stay visible.
+- Added photo-loader and huge-image regression tests.
+
 
 - Visitor photos are downloaded, downscaled and cropped to the 116 x 146 thumbnail before layout.
 - A 3000 x 4000 test image no longer changes the panel height or hides the buttons.

@@ -267,6 +267,32 @@ enum Snapshot {
     }
 }
 
+enum PhotoLoaderCheck {
+    @MainActor
+    static func run() {
+        Task { @MainActor in
+            let huge = NSImage(size: NSSize(width: 3000, height: 4000))
+            huge.lockFocus()
+            NSColor.systemTeal.setFill()
+            NSRect(x: 0, y: 0, width: 3000, height: 4000).fill()
+            NSColor.black.setFill()
+            NSRect(x: 500, y: 700, width: 2000, height: 2600).fill()
+            huge.unlockFocus()
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("mg-photo-loader-test.png")
+            if let tiff = huge.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+               let png = rep.representation(using: .png, properties: [:]) {
+                try? png.write(to: url)
+            }
+            let loaded = await PendingImageLoader.load(from: url, targetSize: CGSize(width: 46, height: 46))
+            try? FileManager.default.removeItem(at: url)
+            let ok = loaded?.size == NSSize(width: 46, height: 46)
+            print("PHOTO_LOADER \(ok ? "PASS" : "FAIL") size=\(loaded?.size.debugDescription ?? "nil")")
+            exit(ok ? 0 : 1)
+        }
+        RunLoop.main.run()
+    }
+}
+
 enum PendingPhotoSnapshot {
     @MainActor
     static func run(path: String) {
@@ -353,6 +379,8 @@ if CommandLine.arguments.contains("--history-test") {
     startMenuBarApp()
 } else if CommandLine.arguments.contains("--selftest") {
     MainActor.assumeIsolated { SelfTest.run() }
+} else if CommandLine.arguments.contains("--photo-loader-test") {
+    MainActor.assumeIsolated { PhotoLoaderCheck.run() }
 } else if let index = CommandLine.arguments.firstIndex(of: "--snapshot-pending-photo") {
     let path = CommandLine.arguments.count > index + 1 ? CommandLine.arguments[index + 1] : "/tmp/pending-photo.png"
     MainActor.assumeIsolated { PendingPhotoSnapshot.run(path: path) }

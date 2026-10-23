@@ -63,8 +63,8 @@ enum MGUnitTests {
         NSRect(x: 0, y: 0, width: 3000, height: 4000).fill()
         huge.unlockFocus()
         if let cg = huge.cgImage(forProposedRect: nil, context: nil, hints: nil),
-           let small = PendingImageLoader.resized(cg, targetSize: CGSize(width: 116, height: 146)) {
-            check(small.size == NSSize(width: 116, height: 146), "visitor photo downscaled")
+           let small = PendingImageLoader.resized(cg, targetSize: CGSize(width: 46, height: 46)) {
+            check(small.size == NSSize(width: 46, height: 46), "visitor photo downscaled")
         } else {
             check(false, "visitor photo downscaled")
         }

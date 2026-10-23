@@ -890,7 +890,7 @@ struct PendingPanelView: View {
             HStack(alignment: .top, spacing: 14) {
                 PendingPhoto(url: pending.photoURL,
                              previewImage: previewImage,
-                             targetSize: CGSize(width: 116, height: 146))
+                             targetSize: CGSize(width: 46, height: 46))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 VStack(alignment: .leading, spacing: 6) {
                     Text(pending.title)
