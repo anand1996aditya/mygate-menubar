@@ -193,12 +193,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self?.closePendingPanel()
             }
         )
+        let size = NSSize(width: 400, height: 320)
         let hosting = NSHostingView(rootView: card)
         hosting.sizingOptions = []
-        hosting.frame = NSRect(x: 0, y: 0, width: 400, height: 360)
-        hosting.layoutSubtreeIfNeeded()
-        let fitting = hosting.fittingSize
-        let size = NSSize(width: 400, height: min(max(fitting.height, 190), 520))
         hosting.translatesAutoresizingMaskIntoConstraints = true
         hosting.frame = NSRect(origin: .zero, size: size)
         hosting.autoresizingMask = [.width, .height]

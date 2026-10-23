@@ -327,9 +327,11 @@ enum PendingPhotoSnapshot {
 enum PendingSnapshot {
     @MainActor
     static func run(path: String) {
-        let pending = MGPending(validationId: "sample", title: "Zomato Delivery", subtitle: "Delivery",
-                                body: "Delivery executive at the main gate", category: "Delivery",
-                                time: "5:42 PM", flat: "T1 101", gate: "Main gate",
+        let pending = MGPending(validationId: "sample",
+                                title: "Your order from Zomato is on the way",
+                                subtitle: "Dildar Alam from Zomato requires your approval for entry to T6 6113, Prestige Primrose Hills",
+                                body: "Dildar Alam from Zomato requires your approval for entry to T6 6113, Prestige Primrose Hills",
+                                category: "Deliv", time: "5:42 PM", flat: "T6-6113", gate: "Main gate",
                                 photoURL: nil)
         let view = PendingPanelView(pending: pending, onApprove: {}, onDeny: {}, onClose: {})
         let renderer = ImageRenderer(content: view)

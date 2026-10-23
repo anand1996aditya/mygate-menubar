@@ -93,6 +93,8 @@ struct MGPending: Identifiable, Equatable {
     var gate: String = ""
     var photoURL: URL?
     var valstatus: String = ""
+    var replyto: String = ""
+    var notificationId: String = ""
     var id: String { validationId }
 }
 
@@ -195,11 +197,21 @@ struct MGAPI {
     }
 
     func approve(_ pending: MGPending) async throws {
+        if !pending.replyto.isEmpty {
+            _ = try await request(pending.replyto,
+                                  body: MGBodies.validationResponse(config, pending, status: "A"))
+            return
+        }
         _ = try await request("https://ack.mygate.in/ecom/v3/approvalrequest/allowonce",
                               body: MGBodies.allowOnce(config, validationId: pending.validationId))
     }
 
     func reject(_ pending: MGPending, reason: String) async throws {
+        if !pending.replyto.isEmpty {
+            _ = try await request(pending.replyto,
+                                  body: MGBodies.validationResponse(config, pending, status: "D"))
+            return
+        }
         _ = try await request("https://ack.mygate.in/ecom/v3/approvalrequest/userreject",
                               body: MGBodies.reject(config, validationId: pending.validationId, reason: reason))
     }
@@ -365,6 +377,8 @@ struct MGAPI {
         pending.requestId = (data["request_id"] as? String) ?? ""
         pending.visitId = (data["visitId"] as? String) ?? (data["visitid"] as? String) ?? ""
         pending.valstatus = (data["valstatus"] as? String) ?? ""
+        pending.replyto = firstString(data, keys: ["replyto", "reply_to", "replyTo"]) ?? ""
+        pending.notificationId = firstString(data, keys: ["notification_id", "notificationId"]) ?? ""
         pending.title = firstString(data, keys: ["visitor_title", "title", "visitor_name", "username", "name"]) ?? "Visitor at gate"
         pending.subtitle = firstString(data, keys: ["visitor_subtitle", "subtitle", "body", "message", "category"]) ?? ""
         pending.body = firstString(data, keys: ["body", "message", "additional_message"]) ?? ""

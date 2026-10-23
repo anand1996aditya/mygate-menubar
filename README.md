@@ -22,8 +22,9 @@ The app uses the same endpoints as the MyGate Android app:
 
 - Login: OTP request and login, then the returned `access-key` header.
 - Pending approval: `GET /notif/v2/validation/active`.
-- Approve: `POST /ecom/v3/approvalrequest/allowonce`.
-- Deny: `POST /ecom/v3/approvalrequest/userreject`.
+- Approve/Deny: the `replyto` URL from the pending notification
+  (`/acknowledge/v1/notification/validation`) with `valstatus: A` or `D`.
+  The older `/ecom/v3/approvalrequest/*` routes remain as a fallback.
 - Pre-approval lists and requests.
 - Visitor history: `GET /flat/v2/visitors` and `GET /seekinvite/v1/myvisits`.
 

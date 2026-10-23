@@ -225,6 +225,21 @@ enum MGBodies {
         ["userid": c.userId, "flatid": c.flatId, "validation_id": validationId, "reason": reason]
     }
 
+    /// Exact body the MyGate notification action sends (A = allow, D = deny).
+    static func validationResponse(_ c: MGConfig, _ pending: MGPending, status: String) -> [String: Any] {
+        [
+            "action_screen": "NOTIFICATION",
+            "device_number": c.deviceId,
+            "network_type": "WIFI",
+            "notification_id": pending.notificationId,
+            "userid": c.userId,
+            "flatid": c.flatId,
+            "validationid": pending.validationId,
+            "visitId": pending.visitId,
+            "valstatus": status
+        ]
+    }
+
     static func preApproveInfo(_ c: MGConfig) -> [String: Any] {
         ["userid": c.userId, "flatid": c.flatId]
     }

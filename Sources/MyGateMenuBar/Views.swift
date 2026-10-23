@@ -863,6 +863,16 @@ struct PendingPanelView: View {
     var previewImage: NSImage? = nil
     @State private var busy = false
 
+    private var bodyText: String {
+        let subtitle = pending.subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = pending.body.trimmingCharacters(in: .whitespacesAndNewlines)
+        if body.isEmpty { return subtitle }
+        if subtitle.isEmpty { return body }
+        if body == subtitle || body.contains(subtitle) { return body }
+        if subtitle.contains(body) { return subtitle }
+        return subtitle + " · " + body
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
@@ -895,11 +905,12 @@ struct PendingPanelView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(pending.title)
                         .font(.system(size: 17, weight: .bold, design: .rounded))
-                        .lineLimit(3)
-                    Text([pending.subtitle, pending.body].filter { !$0.isEmpty }.joined(separator: " · "))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(bodyText)
                         .font(.system(size: 11, design: .rounded))
                         .foregroundStyle(.secondary)
-                        .lineLimit(4)
+                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                     if !pending.gate.isEmpty || !pending.flat.isEmpty {
                         Text([pending.gate, pending.flat].filter { !$0.isEmpty }.joined(separator: " · "))
@@ -911,10 +922,13 @@ struct PendingPanelView: View {
                 Spacer(minLength: 0)
             }
 
+            Spacer(minLength: 0)
+
             if let errorText, !errorText.isEmpty {
                 Text(errorText)
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(.red)
+                    .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -953,7 +967,7 @@ struct PendingPanelView: View {
             }
         }
         .padding(16)
-        .frame(width: 400)
+        .frame(width: 400, height: 320, alignment: .top)
         .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
@@ -1039,14 +1053,9 @@ private struct PendingPhoto: View {
     private var placeholder: some View {
         ZStack {
             Color.secondary.opacity(0.10)
-            VStack(spacing: 6) {
-                Image(systemName: "person.crop.square.fill")
-                    .font(.system(size: 30))
-                    .foregroundStyle(.secondary.opacity(0.5))
-                Text("No photo")
-                    .font(.system(size: 9, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
+            Image(systemName: "person.crop.square.fill")
+                .font(.system(size: 20))
+                .foregroundStyle(.secondary.opacity(0.5))
         }
     }
 }

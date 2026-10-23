@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.7 — 23 Oct 2026
+
+- Approve and Deny now use the notification reply URL and `valstatus` A/D, matching the phone app.
+- The visitor panel has a fixed height; long titles and repeated body text cannot push the buttons out.
+- The panel photo placeholder is icon-only at thumbnail size.
+
 ## 1.4.6 — 23 Oct 2026
 
 - Bundle identifier is now `io.github.anand1996aditya.mygate-menubar`.
