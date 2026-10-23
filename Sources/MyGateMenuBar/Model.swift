@@ -88,6 +88,12 @@ final class MGModel: ObservableObject {
         historyTask?.cancel(); historyTask = nil
     }
 
+    func restartPolling() {
+        guard phase == .loggedIn else { return }
+        stop()
+        start()
+    }
+
     func sendOTP(phone: String) async {
         let number = MGModel.normalizePhone(phone)
         guard number.count == 10 else { message = "Enter a 10-digit mobile number"; return }

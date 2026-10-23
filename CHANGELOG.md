@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.2 — 23 Oct 2026
+
+- Visitor alert panel is now a compact card with a thumbnail, not a full-screen photo.
+- The panel has a close button, auto-closes after five minutes, and closes on screen change.
+- Pending polling restarts after wake, so expired requests do not leave a stale panel.
+
 ## 1.4.1 — 23 Oct 2026
 
 - The MyGate access key now lives in the macOS Keychain (service `com.secureu.mygate`), not in `config.json`.

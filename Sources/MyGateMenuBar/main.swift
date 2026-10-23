@@ -274,7 +274,7 @@ enum PendingSnapshot {
                                 body: "Delivery executive at the main gate", category: "Delivery",
                                 time: "5:42 PM", flat: "T1 101", gate: "Main gate",
                                 photoURL: nil)
-        let view = PendingPanelView(pending: pending, onApprove: {}, onDeny: {})
+        let view = PendingPanelView(pending: pending, onApprove: {}, onDeny: {}, onClose: {})
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2
         if let image = renderer.nsImage, let tiff = image.tiffRepresentation,

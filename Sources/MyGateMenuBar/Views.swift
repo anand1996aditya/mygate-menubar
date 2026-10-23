@@ -859,110 +859,127 @@ struct PendingPanelView: View {
     var errorText: String? = nil
     let onApprove: () -> Void
     let onDeny: () -> Void
+    let onClose: () -> Void
     @State private var busy = false
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            photo
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-                .overlay(LinearGradient(colors: [.black.opacity(0.05), .black.opacity(0.15), .black.opacity(0.55)],
-                                        startPoint: .top, endPoint: .bottom))
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Label("VISITOR AT GATE", systemImage: "bell.badge.fill")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(.black.opacity(0.35), in: Capsule())
-                    Spacer()
-                    Text(pending.time)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.9))
-                }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Label("VISITOR AT GATE", systemImage: "bell.badge.fill")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(.orange)
                 Spacer()
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(pending.title)
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                    Text([pending.subtitle, pending.body].filter { !$0.isEmpty }.joined(separator: " · "))
-                        .font(.system(size: 12, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.85))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if let errorText, !errorText.isEmpty {
-                    Text(errorText)
+                if !pending.time.isEmpty {
+                    Text(pending.time)
                         .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .foregroundStyle(.secondary)
                 }
-                HStack(spacing: 10) {
-                    Button {
-                        busy = true
-                        onDeny()
-                    } label: {
-                        Group {
-                            if busy {
-                                ProgressView().controlSize(.small).tint(.white)
-                            } else {
-                                Text("Deny")
-                            }
-                        }
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity).padding(.vertical, 12)
-                        .background(.white.opacity(0.18), in: Capsule())
-                        .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(busy)
-                    Button {
-                        busy = true
-                        onApprove()
-                    } label: {
-                        Group {
-                            if busy {
-                                ProgressView().controlSize(.small).tint(Brand.ink)
-                            } else {
-                                Text("Approve")
-                            }
-                        }
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(Brand.ink)
-                        .frame(maxWidth: .infinity).padding(.vertical, 12)
-                        .background(Brand.yellow, in: Capsule())
-                        .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(busy)
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
+                        .background(Color.secondary.opacity(0.12), in: Circle())
+                        .contentShape(Circle())
                 }
+                .buttonStyle(.plain)
+                .help("Dismiss until the next visitor")
             }
-            .padding(18)
+
+            HStack(alignment: .top, spacing: 14) {
+                photo
+                    .frame(width: 116, height: 146)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(pending.title)
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .lineLimit(3)
+                    Text([pending.subtitle, pending.body].filter { !$0.isEmpty }.joined(separator: " · "))
+                        .font(.system(size: 11, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !pending.gate.isEmpty || !pending.flat.isEmpty {
+                        Text([pending.gate, pending.flat].filter { !$0.isEmpty }.joined(separator: " · "))
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+
+            if let errorText, !errorText.isEmpty {
+                Text(errorText)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    busy = true
+                    onDeny()
+                } label: {
+                    Group {
+                        if busy { ProgressView().controlSize(.small) } else { Text("Deny") }
+                    }
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity).frame(height: 40)
+                    .background(Color.secondary.opacity(0.12), in: Capsule())
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(busy)
+
+                Button {
+                    busy = true
+                    onApprove()
+                } label: {
+                    Group {
+                        if busy { ProgressView().controlSize(.small).tint(Brand.ink) } else { Text("Approve") }
+                    }
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(Brand.ink)
+                    .frame(maxWidth: .infinity).frame(height: 40)
+                    .background(Brand.yellow, in: Capsule())
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(busy)
+            }
         }
-        .frame(width: 400, height: 620)
-        .background(.black)
-        .ignoresSafeArea()
+        .padding(16)
+        .frame(width: 400)
+        .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     @ViewBuilder private var photo: some View {
         if let url = pending.photoURL {
             AsyncImage(url: url) { phase in
-                if case .success(let image) = phase { image.resizable().scaledToFill() }
-                else { placeholder }
+                switch phase {
+                case .success(let image): image.resizable().scaledToFill()
+                case .failure: placeholder
+                case .empty: ZStack { Color.secondary.opacity(0.08); ProgressView().controlSize(.small) }
+                @unknown default: placeholder
+                }
             }
-        } else { placeholder }
+        } else {
+            placeholder
+        }
     }
 
     private var placeholder: some View {
         ZStack {
-            LinearGradient(colors: [Color(white: 0.18), Color(white: 0.08)], startPoint: .top, endPoint: .bottom)
-            VStack(spacing: 10) {
+            Color.secondary.opacity(0.10)
+            VStack(spacing: 6) {
                 Image(systemName: "person.crop.square.fill")
-                    .font(.system(size: 54))
-                    .foregroundStyle(.white.opacity(0.35))
-                Text("Photo not shared by guard")
-                    .font(.system(size: 11, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.55))
+                    .font(.system(size: 30))
+                    .foregroundStyle(.secondary.opacity(0.5))
+                Text("No photo")
+                    .font(.system(size: 9, design: .rounded))
+                    .foregroundStyle(.secondary)
             }
         }
     }

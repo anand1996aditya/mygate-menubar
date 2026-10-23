@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
     private var pendingPanel: NSPanel?
+    private var pendingAutoClose: DispatchWorkItem?
     private var cancellables = Set<AnyCancellable>()
     private var globalClickMonitor: Any?
 
@@ -61,6 +62,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification,
                                                object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.closePopoverIfShown() }
+        }
+
+        NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
+                                               object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.closePendingPanel() }
+        }
+
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification,
+                                                          object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.model.restartPolling()
+                await self?.model.checkPending()
+            }
         }
 
         updateStatusItem()
@@ -174,11 +188,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                         self.showPendingPanel(pending, error: self.model.message)
                     }
                 }
+            },
+            onClose: { [weak self] in
+                self?.closePendingPanel()
             }
         )
-        let size = NSSize(width: 400, height: 620)
         let hosting = NSHostingView(rootView: card)
         hosting.sizingOptions = []
+        hosting.frame = NSRect(x: 0, y: 0, width: 400, height: 360)
+        hosting.layoutSubtreeIfNeeded()
+        let fitting = hosting.fittingSize
+        let size = NSSize(width: 400, height: min(max(fitting.height, 260), 520))
         hosting.translatesAutoresizingMaskIntoConstraints = true
         hosting.frame = NSRect(origin: .zero, size: size)
         hosting.autoresizingMask = [.width, .height]
@@ -208,9 +228,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         pendingPanel = panel
+        schedulePendingAutoClose(panel)
+    }
+
+    private func schedulePendingAutoClose(_ panel: KeyablePanel) {
+        pendingAutoClose?.cancel()
+        let work = DispatchWorkItem { [weak self, weak panel] in
+            guard let self, let panel, self.pendingPanel === panel else { return }
+            MGDiagnostics.append("pending panel auto-closed after 5 minutes")
+            self.closePendingPanel()
+        }
+        pendingAutoClose = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 300, execute: work)
     }
 
     private func closePendingPanel() {
+        pendingAutoClose?.cancel()
+        pendingAutoClose = nil
         pendingPanel?.orderOut(nil)
         pendingPanel = nil
     }
