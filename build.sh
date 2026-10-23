@@ -20,8 +20,8 @@ cat > "$BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>MyGate MenuBar</string>
   <key>CFBundleExecutable</key><string>MyGateMenuBar</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.4.7</string>
-  <key>CFBundleVersion</key><string>21</string>
+  <key>CFBundleShortVersionString</key><string>1.4.8</string>
+  <key>CFBundleVersion</key><string>22</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>

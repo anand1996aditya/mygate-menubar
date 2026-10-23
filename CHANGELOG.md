@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.8 — 23 Oct 2026
+
+- Pending notification times are formatted from epoch milliseconds (for example "12:28 PM").
+
 ## 1.4.7 — 23 Oct 2026
 
 - Approve and Deny now use the notification reply URL and `valstatus` A/D, matching the phone app.

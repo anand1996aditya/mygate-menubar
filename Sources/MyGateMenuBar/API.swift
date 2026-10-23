@@ -383,7 +383,16 @@ struct MGAPI {
         pending.subtitle = firstString(data, keys: ["visitor_subtitle", "subtitle", "body", "message", "category"]) ?? ""
         pending.body = firstString(data, keys: ["body", "message", "additional_message"]) ?? ""
         pending.category = firstString(data, keys: ["category", "visitor_category", "ecom_type"]) ?? ""
-        pending.time = firstString(data, keys: ["time", "visit_time", "created_at"]) ?? ""
+        let rawTime = firstString(data, keys: ["time", "visit_time", "created_at"]) ?? ""
+        if let epoch = Double(rawTime), epoch > 0 {
+            let seconds = epoch > 1_000_000_000_000 ? epoch / 1000 : epoch
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = "h:mm a"
+            pending.time = formatter.string(from: Date(timeIntervalSince1970: seconds))
+        } else {
+            pending.time = rawTime
+        }
         pending.flat = firstString(data, keys: ["flat", "flat_name"]) ?? ""
         pending.gate = firstString(data, keys: ["gate", "gate_name", "gateName"]) ?? ""
         if let raw = firstString(data, keys: ["image", "bigImage", "smallImage", "visitor_image", "photo"]) {

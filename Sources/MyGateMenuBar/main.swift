@@ -293,6 +293,50 @@ enum PhotoLoaderCheck {
     }
 }
 
+enum PendingDemo {
+    @MainActor
+    static func run() {
+        let fileURL = MGConfig.supportDir.appendingPathComponent("pending-last.json")
+        guard let data = try? Data(contentsOf: fileURL),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let pending = MGAPI.parsePending(object) else {
+            print("DEMO_PENDING_NO_DATA")
+            exit(1)
+        }
+        MGDiagnostics.append("demo pending window shown id=\(pending.validationId)")
+        let view = PendingPanelView(pending: pending,
+                                    onApprove: {},
+                                    onDeny: {},
+                                    onClose: { NSApp.terminate(nil) })
+        let size = NSSize(width: 400, height: 320)
+        let hosting = NSHostingView(rootView: view)
+        hosting.sizingOptions = []
+        hosting.translatesAutoresizingMaskIntoConstraints = true
+        hosting.frame = NSRect(origin: .zero, size: size)
+        hosting.autoresizingMask = [.width, .height]
+        let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
+                            styleMask: [.borderless, .nonactivatingPanel],
+                            backing: .buffered, defer: false)
+        panel.isFloatingPanel = true
+        panel.isMovableByWindowBackground = true
+        panel.level = .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = true
+        panel.contentView = hosting
+        panel.setContentSize(size)
+        if let screen = NSScreen.main {
+            panel.setFrameOrigin(NSPoint(x: screen.visibleFrame.maxX - size.width - 14,
+                                         y: screen.visibleFrame.maxY - size.height - 10))
+        }
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        print("DEMO_PENDING_SHOWN \(pending.title)")
+        NSApp.run()
+    }
+}
+
 enum PendingPhotoSnapshot {
     @MainActor
     static func run(path: String) {
@@ -363,7 +407,9 @@ func startMenuBarApp() {
     app.run()
 }
 
-if CommandLine.arguments.contains("--history-test") {
+if CommandLine.arguments.contains("--demo-pending-real") {
+    MainActor.assumeIsolated { PendingDemo.run() }
+} else if CommandLine.arguments.contains("--history-test") {
     MainActor.assumeIsolated { HistoryTest.run() }
 } else if CommandLine.arguments.contains("--functional-test") {
     MainActor.assumeIsolated { FunctionalTest.run() }
