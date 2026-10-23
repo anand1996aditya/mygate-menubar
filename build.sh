@@ -30,6 +30,11 @@ cat > "$BUNDLE/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
-codesign --force --identifier io.github.anand1996aditya.mygate-menubar --sign - "$BUNDLE" 2>/dev/null || true
+SIGN_ID="SecureU Local Code Signing"
+if security find-identity -v -p codesigning 2>/dev/null | grep -q "$SIGN_ID"; then
+  codesign --force --sign "$SIGN_ID" --identifier io.github.anand1996aditya.mygate-menubar "$BUNDLE" 2>/dev/null || true
+else
+  codesign --force --sign - --identifier io.github.anand1996aditya.mygate-menubar "$BUNDLE" 2>/dev/null || true
+fi
 touch "Build/.metadata_never_index"
 echo "Built: $BUNDLE"

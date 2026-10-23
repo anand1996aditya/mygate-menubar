@@ -861,6 +861,7 @@ struct PendingPanelView: View {
     let onDeny: () -> Void
     let onClose: () -> Void
     var previewImage: NSImage? = nil
+    var isPreview = false
     @State private var busy = false
 
     private var bodyText: String {
@@ -938,7 +939,7 @@ struct PendingPanelView: View {
                     onDeny()
                 } label: {
                     Group {
-                        if busy { ProgressView().controlSize(.small) } else { Text("Deny") }
+                        if busy && !isPreview { ProgressView().controlSize(.small) } else { Text("Deny") }
                     }
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
@@ -947,14 +948,14 @@ struct PendingPanelView: View {
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .disabled(busy)
+                .disabled(busy && !isPreview)
 
                 Button {
                     busy = true
                     onApprove()
                 } label: {
                     Group {
-                        if busy { ProgressView().controlSize(.small).tint(Brand.ink) } else { Text("Approve") }
+                        if busy && !isPreview { ProgressView().controlSize(.small).tint(Brand.ink) } else { Text("Approve") }
                     }
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .foregroundStyle(Brand.ink)
@@ -963,7 +964,7 @@ struct PendingPanelView: View {
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .disabled(busy)
+                .disabled(busy && !isPreview)
             }
         }
         .padding(16)

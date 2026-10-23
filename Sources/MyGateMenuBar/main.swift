@@ -307,7 +307,8 @@ enum PendingDemo {
         let view = PendingPanelView(pending: pending,
                                     onApprove: {},
                                     onDeny: {},
-                                    onClose: { NSApp.terminate(nil) })
+                                    onClose: { NSApp.terminate(nil) },
+                                    isPreview: true)
         let size = NSSize(width: 400, height: 320)
         let hosting = NSHostingView(rootView: view)
         hosting.sizingOptions = []
