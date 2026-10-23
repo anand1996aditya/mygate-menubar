@@ -163,7 +163,7 @@ enum HistorySnapshot {
                                       statusColor: "#c4c4c9", passcode: "000000",
                                       timeText: "6:37 PM", detail: "22 Oct 2026 • Valid till 06:37 PM",
                                       isToday: true)]
-        let view = HistoryView(model: model)
+        let view = HistoryView(model: model).frame(width: 400, height: 560)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2
         if let image = renderer.nsImage, let tiff = image.tiffRepresentation,

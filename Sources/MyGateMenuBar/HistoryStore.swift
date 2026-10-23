@@ -1,5 +1,28 @@
 import Foundation
 
+enum MGHistoryFormat {
+    static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter
+    }()
+
+    static func formattedEpoch(_ raw: String) -> String? {
+        guard let value = Double(raw), value > 1_000_000_000 else { return nil }
+        let seconds = value > 1_000_000_000_000 ? value / 1000 : value
+        return timeFormatter.string(from: Date(timeIntervalSince1970: seconds))
+    }
+
+    static func cleanText(_ raw: String) -> String {
+        var text = raw.replacingOccurrences(of: "<([A-Za-z][^>]*)>.*?</[A-Za-z][^>]*>", with: "", options: .regularExpression)
+        text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        text = text.replacingOccurrences(of: "&amp;", with: "&")
+        text = text.replacingOccurrences(of: "&nbsp;", with: " ")
+        text = text.replacingOccurrences(of: "house(s)", with: "houses")
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 struct MGHistoryEntry: Codable, Identifiable, Equatable {
     enum Kind: String, Codable {
         case gate, visitor, pass
@@ -14,12 +37,41 @@ struct MGHistoryEntry: Codable, Identifiable, Equatable {
     var timestamp: Date
     var photoURL: String?
     var passcode: String?
+    var note: String? = nil
     var cancelId: String? = nil
     var cancelNtype: String? = nil
 
     var timeLabel: String {
+        if let formatted = MGHistoryFormat.formattedEpoch(timeText) { return formatted }
         if !timeText.isEmpty { return timeText }
-        return MGHistoryStore.timeFormatter.string(from: timestamp)
+        return MGHistoryFormat.timeFormatter.string(from: timestamp)
+    }
+
+    func normalized() -> MGHistoryEntry {
+        var copy = self
+        copy.title = MGHistoryFormat.cleanText(title)
+        copy.subtitle = MGHistoryFormat.cleanText(subtitle)
+        copy.note = note.map(MGHistoryFormat.cleanText).flatMap { $0.isEmpty ? nil : $0 }
+        if let formatted = MGHistoryFormat.formattedEpoch(timeText) {
+            copy.timeText = formatted
+        }
+        if copy.title == "Delivery Executive" {
+            if let parsed = MGModel.parseGateBody(copy.subtitle) {
+                copy.title = "Delivery Executive · \(parsed.company.capitalized)"
+                copy.subtitle = "\(parsed.name) · Approval required at gate"
+                copy.note = "Entry to \(parsed.place)"
+            }
+        }
+        if ["Delivery", "Cab"].contains(copy.title) {
+            let parts = copy.subtitle.components(separatedBy: " · ").map(MGHistoryFormat.cleanText).filter { !$0.isEmpty }
+            let tokens = (parts.first ?? "").components(separatedBy: "  ").map(MGHistoryFormat.cleanText).filter { !$0.isEmpty }
+            if tokens.count >= 2 {
+                copy.title = "\(tokens[0]) (\(tokens[1].capitalized))"
+                copy.subtitle = parts.dropFirst().first ?? ""
+                copy.note = parts.dropFirst(2).joined(separator: " · ")
+            }
+        }
+        return copy
     }
 }
 
@@ -28,12 +80,6 @@ final class MGHistoryStore: ObservableObject {
     static let shared = MGHistoryStore()
 
     @Published private(set) var entries: [MGHistoryEntry] = []
-
-    static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter
-    }()
 
     private let fileURL: URL
     private let retention: TimeInterval = 72 * 3600
@@ -57,7 +103,7 @@ final class MGHistoryStore: ObservableObject {
         guard let data = try? Data(contentsOf: fileURL),
               let list = try? JSONDecoder().decode([MGHistoryEntry].self, from: data) else { return }
         let cutoff = Date().addingTimeInterval(-retention)
-        entries = list.filter { $0.timestamp > cutoff }.sorted { $0.timestamp > $1.timestamp }
+        entries = list.filter { $0.timestamp > cutoff }.map { $0.normalized() }.sorted { $0.timestamp > $1.timestamp }
     }
 
     private func save() {
@@ -75,6 +121,7 @@ final class MGHistoryStore: ObservableObject {
             existing.subtitle = entry.subtitle.isEmpty ? existing.subtitle : entry.subtitle
             existing.status = entry.status.isEmpty ? existing.status : entry.status
             existing.timeText = entry.timeText.isEmpty ? existing.timeText : entry.timeText
+            existing.note = entry.note ?? existing.note
             existing.photoURL = entry.photoURL ?? existing.photoURL
             existing.passcode = entry.passcode ?? existing.passcode
             existing.cancelId = entry.cancelId ?? existing.cancelId
@@ -89,16 +136,27 @@ final class MGHistoryStore: ObservableObject {
     }
 
     func recordGate(_ pending: MGPending, status: String = "At gate") {
+        var title = MGHistoryFormat.cleanText(pending.title)
+        var subtitle = MGHistoryFormat.cleanText(pending.body.isEmpty ? pending.subtitle : pending.body)
+        var note: String?
+        if let parsed = MGModel.parseGateBody(subtitle) {
+            if title.lowercased().contains("delivery executive") || title.lowercased() == "visitor at gate" {
+                title = "\(title) · \(parsed.company.capitalized)"
+                subtitle = "\(parsed.name) · Approval required at gate"
+                note = "Entry to \(parsed.place)"
+            }
+        }
         let entry = MGHistoryEntry(
             id: "g:\(pending.validationId)",
             kind: .gate,
-            title: pending.title,
-            subtitle: pending.body.isEmpty ? pending.subtitle : pending.body,
+            title: title,
+            subtitle: subtitle,
             status: status,
             timeText: pending.time,
             timestamp: Date(),
             photoURL: pending.photoURL?.absoluteString,
-            passcode: nil
+            passcode: nil,
+            note: note
         )
         upsert(entry)
     }
@@ -124,7 +182,7 @@ final class MGHistoryStore: ObservableObject {
             title: name,
             subtitle: type.replacingOccurrences(of: "_", with: " ").capitalized,
             status: "Inside",
-            timeText: Self.timeFormatter.string(from: Date()),
+            timeText: MGHistoryFormat.timeFormatter.string(from: Date()),
             timestamp: Date(),
             photoURL: photoURL,
             passcode: passcode.isEmpty ? nil : passcode
@@ -149,11 +207,11 @@ final class MGHistoryStore: ObservableObject {
         save()
     }
 
-    func recordFeedCard(id: String, title: String, subtitle: String, status: String,
-                        timestamp: Date, cancelId: String?, cancelNtype: String?) {
+    func recordFeedCard(id: String, title: String, subtitle: String, note: String?,
+                        status: String, timestamp: Date, cancelId: String?, cancelNtype: String?) {
         upsert(MGHistoryEntry(id: "f:\(id)", kind: .pass, title: title, subtitle: subtitle,
-                              status: status, timeText: MGHistoryStore.timeFormatter.string(from: timestamp),
-                              timestamp: timestamp, photoURL: nil, passcode: nil,
+                              status: status, timeText: MGHistoryFormat.timeFormatter.string(from: timestamp),
+                              timestamp: timestamp, photoURL: nil, passcode: nil, note: note,
                               cancelId: cancelId, cancelNtype: cancelNtype))
     }
 

@@ -69,6 +69,18 @@ enum MGUnitTests {
             check(false, "visitor photo downscaled")
         }
 
+        // History presentation.
+        let deliveryCard = MGFeedCard(id: "f1", cardType: "DELIVERY", name: "", status: "INSIDE",
+                                      detail: "Vinay Kumar  AMAZON · Allowed by you · Delivering to 16 more house(s)",
+                                      timestamp: Date(), cancelId: nil, ntype: nil)
+        let shown = MGModel.feedPresentation(deliveryCard)
+        check(shown.title == "Vinay Kumar (Amazon)", "delivery heading name and company")
+        check(shown.subtitle == "Allowed by you", "delivery action line")
+        check(shown.note == "Delivering to 16 more houses", "delivery note line")
+        check(MGHistoryFormat.cleanText("Dildar Alam<IMGS>VALIDATED</IMGS> · Pre-approved by you")
+              == "Dildar Alam · Pre-approved by you", "history tags removed")
+        check(MGHistoryFormat.formattedEpoch("1792738691831") != nil, "epoch history time formatted")
+
         // Default delivery companies
         let companies = MGModel.defaultDeliveryCompanies
         check(companies.contains("BLINKIT"), "default has Blinkit")

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.9 — 23 Oct 2026
+
+- Gate history headings now show the visitor and company, for example "Vinay Kumar (Amazon)".
+- Delivery progress is on its own line, for example "Delivering to 16 more houses".
+- History strips validation markup and formats old epoch timestamps.
+
 ## 1.4.8 — 23 Oct 2026
 
 - Pending notification times are formatted from epoch milliseconds (for example "12:28 PM").

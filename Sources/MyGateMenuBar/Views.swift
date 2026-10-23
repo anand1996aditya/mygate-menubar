@@ -769,19 +769,28 @@ struct HistoryView: View {
     }
 
     private func historyRow(_ entry: MGHistoryEntry) -> some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: entry.kind == .gate ? "bell.fill" : (entry.kind == .visitor ? "person.fill" : "ticket.fill"))
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
                 .frame(width: 14)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(entry.title)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .lineLimit(1)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(subtitle(for: entry))
                     .font(.system(size: 9, design: .rounded))
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let note = entry.note, !note.isEmpty {
+                    Text(note)
+                        .font(.system(size: 9, design: .rounded))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 1) {

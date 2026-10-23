@@ -308,7 +308,48 @@ final class MGModel: ObservableObject {
         }
     }
 
-    static func feedTitle(_ card: MGFeedCard) -> String {
+    nonisolated static func parseGateBody(_ body: String) -> (name: String, company: String, place: String)? {
+        let pattern = #"^(.+?) from (.+?) requires your approval for entry to (.+)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)),
+              match.numberOfRanges == 4,
+              let nameRange = Range(match.range(at: 1), in: body),
+              let companyRange = Range(match.range(at: 2), in: body),
+              let placeRange = Range(match.range(at: 3), in: body) else { return nil }
+        return (String(body[nameRange]).trimmingCharacters(in: .whitespaces),
+                String(body[companyRange]).trimmingCharacters(in: .whitespaces),
+                String(body[placeRange]).trimmingCharacters(in: .whitespaces))
+    }
+
+    nonisolated static func feedPresentation(_ card: MGFeedCard) -> (title: String, subtitle: String, note: String?) {
+        let rawParts = card.detail.components(separatedBy: " · ")
+        let firstRaw = rawParts.first ?? ""
+        let tokens = firstRaw.components(separatedBy: "  ")
+            .map { MGHistoryFormat.cleanText($0) }
+            .filter { !$0.isEmpty }
+        var title = feedTitle(card)
+        var subtitle = ""
+        var note: String?
+
+        if tokens.count >= 2 {
+            title = "\(tokens[0]) (\(tokens[1].capitalized))"
+            let actions = rawParts.dropFirst().map { MGHistoryFormat.cleanText($0) }.filter { !$0.isEmpty }
+            subtitle = actions.first ?? ""
+            note = actions.dropFirst().joined(separator: " · ")
+        } else {
+            if !card.name.isEmpty { title = MGHistoryFormat.cleanText(card.name) }
+            var parts = rawParts.map { MGHistoryFormat.cleanText($0) }.filter { !$0.isEmpty }
+            if let first = parts.first,
+               first.caseInsensitiveCompare(title) == .orderedSame || first.hasPrefix(title) {
+                parts.removeFirst()
+            }
+            subtitle = parts.first ?? ""
+            note = parts.dropFirst().joined(separator: " · ")
+        }
+        return (title, subtitle, note?.isEmpty == true ? nil : note)
+    }
+
+    nonisolated static func feedTitle(_ card: MGFeedCard) -> String {
         switch card.cardType.uppercased() {
         case "DELIVERY": return "Delivery"
         case "CAB": return "Cab"
@@ -373,8 +414,8 @@ final class MGModel: ObservableObject {
             }
         }
         for card in feedCards.values {
-            history.recordFeedCard(id: card.id, title: Self.feedTitle(card),
-                                   subtitle: card.detail.isEmpty ? card.cardType.capitalized : card.detail,
+            let shown = Self.feedPresentation(card)
+            history.recordFeedCard(id: card.id, title: shown.title, subtitle: shown.subtitle, note: shown.note,
                                    status: card.status, timestamp: card.timestamp,
                                    cancelId: card.cancelId, cancelNtype: card.ntype)
         }
