@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.6 — 23 Oct 2026
+
+- Bundle identifier is now `io.github.anand1996aditya.mygate-menubar`.
+- Application Support folder renamed to `MyGateMenuBar`; existing data is copied on first launch.
+- Keychain service renamed; the old access key is migrated automatically.
+
 ## 1.4.5 — 23 Oct 2026
 
 - Visitor photo now uses the same 46 x 46 point thumbnail as the Urban Company app.

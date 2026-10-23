@@ -15,13 +15,13 @@ cat > "$BUNDLE/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleIdentifier</key><string>com.secureu.mygate</string>
+  <key>CFBundleIdentifier</key><string>io.github.anand1996aditya.mygate-menubar</string>
   <key>CFBundleName</key><string>MyGate MenuBar</string>
   <key>CFBundleDisplayName</key><string>MyGate MenuBar</string>
   <key>CFBundleExecutable</key><string>MyGateMenuBar</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.4.5</string>
-  <key>CFBundleVersion</key><string>19</string>
+  <key>CFBundleShortVersionString</key><string>1.4.6</string>
+  <key>CFBundleVersion</key><string>20</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
@@ -30,6 +30,6 @@ cat > "$BUNDLE/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
-codesign --force --identifier com.secureu.mygate --sign - "$BUNDLE" 2>/dev/null || true
+codesign --force --identifier io.github.anand1996aditya.mygate-menubar --sign - "$BUNDLE" 2>/dev/null || true
 touch "Build/.metadata_never_index"
 echo "Built: $BUNDLE"

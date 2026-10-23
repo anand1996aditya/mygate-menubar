@@ -43,8 +43,8 @@ phone number and OTP; the session is stored only on your Mac.
         open "$HOME/Applications/MyGate MenuBar.app"
 
 2. Enter the phone number and the OTP in the app. The access key is stored in the macOS
-   Keychain (service `com.secureu.mygate`, account `access-key`). The remaining, non-secret
-   settings are stored at `~/Library/Application Support/MyGate Menu Bar/config.json` with
+   Keychain (service `io.github.anand1996aditya.mygate-menubar`, account `access-key`). The remaining, non-secret
+   settings are stored at `~/Library/Application Support/MyGateMenuBar/config.json` with
    `0600` permissions. `config.json` never contains the access key.
 
 No credentials are compiled into the binary.

@@ -15,7 +15,8 @@ struct MGConfig: Codable, Equatable {
     var versionCode: String = "36"
     var appVersion: String = "7.39.0"
 
-    static let keychainService = "com.secureu.mygate"
+    static let keychainService = "io.github.anand1996aditya.mygate-menubar"
+    static let legacyKeychainService = "com.secureu.mygate"
     static let keychainAccount = "access-key"
     /// Field name used by older builds that stored the access key as plain text.
     static let legacyTokenKey = "apiKey"
@@ -64,13 +65,37 @@ struct MGConfig: Codable, Equatable {
 
     static var supportDir: URL {
         FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/MyGateMenuBar")
+    }
+
+    static var legacySupportDir: URL {
+        FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/MyGate MenuBar")
     }
 
     static var fileURL: URL { supportDir.appendingPathComponent("config.json") }
 
+    /// Copies the old application-support folder to the new name on first launch.
+    static func migrateLegacySupportDirectoryIfNeeded() {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: legacySupportDir.path) else { return }
+        do {
+            try fm.createDirectory(at: supportDir, withIntermediateDirectories: true)
+            let items = try fm.contentsOfDirectory(at: legacySupportDir, includingPropertiesForKeys: nil)
+            for item in items {
+                let destination = supportDir.appendingPathComponent(item.lastPathComponent)
+                if !fm.fileExists(atPath: destination.path) {
+                    try fm.copyItem(at: item, to: destination)
+                }
+            }
+        } catch {
+            MGDiagnostics.append("support directory migration failed: \(error.localizedDescription)")
+        }
+    }
+
     static func load() -> MGConfig? {
-        load(from: fileURL, tokenStore: KeychainTokenStore.shared)
+        migrateLegacySupportDirectoryIfNeeded()
+        return load(from: fileURL, tokenStore: KeychainTokenStore.shared)
     }
 
     /// Loads the non-secret config from JSON and the access key from the secure store.
@@ -85,6 +110,14 @@ struct MGConfig: Codable, Equatable {
         var keychainToken: String?
         do {
             keychainToken = try tokenStore.read(service: keychainService, account: keychainAccount)
+            if keychainToken == nil || keychainToken == "" {
+                if let legacyToken = try tokenStore.read(service: legacyKeychainService, account: keychainAccount),
+                   !legacyToken.isEmpty {
+                    keychainToken = legacyToken
+                    try? tokenStore.write(legacyToken, service: keychainService, account: keychainAccount)
+                    MGDiagnostics.append("migrated Keychain access key to new service")
+                }
+            }
         } catch {
             MGDiagnostics.append("keychain read failed: \(error.localizedDescription)")
         }

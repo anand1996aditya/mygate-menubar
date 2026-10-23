@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         MGDiagnostics.hardenExistingLogs()
         let me = ProcessInfo.processInfo.processIdentifier
         if AppDelegate.demoCapturePath == nil {
-            let bundleId = Bundle.main.bundleIdentifier ?? "com.secureu.mygate"
+            let bundleId = Bundle.main.bundleIdentifier ?? "io.github.anand1996aditya.mygate-menubar"
             let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId)
                 .filter { $0.processIdentifier != me }
             if !others.isEmpty {

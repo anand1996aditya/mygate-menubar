@@ -39,6 +39,7 @@ final class MGHistoryStore: ObservableObject {
     private let retention: TimeInterval = 72 * 3600
 
     init(fileURL: URL? = nil) {
+        if fileURL == nil { MGConfig.migrateLegacySupportDirectoryIfNeeded() }
         self.fileURL = fileURL ?? MGConfig.supportDir.appendingPathComponent("history.json")
         load()
     }
