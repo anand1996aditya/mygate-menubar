@@ -55,12 +55,11 @@ struct MGHistoryEntry: Codable, Identifiable, Equatable {
         if let formatted = MGHistoryFormat.formattedEpoch(timeText) {
             copy.timeText = formatted
         }
-        if copy.title == "Delivery Executive" {
-            if let parsed = MGModel.parseGateBody(copy.subtitle) {
-                copy.title = "Delivery Executive · \(parsed.company.capitalized)"
-                copy.subtitle = "\(parsed.name) · Approval required at gate"
-                copy.note = "Entry to \(parsed.place)"
-            }
+        if copy.title == "Delivery Executive" || copy.title.hasPrefix("Your order from ") {
+            let shown = MGModel.gatePresentation(title: copy.title, body: copy.subtitle)
+            copy.title = shown.title
+            copy.subtitle = shown.subtitle
+            copy.note = shown.note
         }
         if ["Delivery", "Cab"].contains(copy.title) {
             let parts = copy.subtitle.components(separatedBy: " · ").map(MGHistoryFormat.cleanText).filter { !$0.isEmpty }
@@ -103,7 +102,9 @@ final class MGHistoryStore: ObservableObject {
         guard let data = try? Data(contentsOf: fileURL),
               let list = try? JSONDecoder().decode([MGHistoryEntry].self, from: data) else { return }
         let cutoff = Date().addingTimeInterval(-retention)
-        entries = list.filter { $0.timestamp > cutoff }.map { $0.normalized() }.sorted { $0.timestamp > $1.timestamp }
+        let repaired = list.filter { $0.timestamp > cutoff }.map { $0.normalized() }.sorted { $0.timestamp > $1.timestamp }
+        entries = repaired
+        if repaired != list { save() }
     }
 
     private func save() {

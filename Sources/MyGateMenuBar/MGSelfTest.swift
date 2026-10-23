@@ -89,6 +89,18 @@ enum MGUnitTests {
         check(order.subtitle == "Order on the way", "order action line")
         check(order.note == "Entry to T6 6113, Prestige Primrose Hills", "order entry note")
 
+        // Old order rows are repaired when history loads.
+        let oldOrder = MGHistoryEntry(id: "g:old", kind: .gate,
+                                      title: "Your order from Zomato is on the way",
+                                      subtitle: "Dildar Alam from Zomato requires your approval for entry to T6 6113, Prestige Primrose Hills",
+                                      status: "Cleared", timeText: "1792738691831", timestamp: Date(),
+                                      photoURL: nil, passcode: nil)
+        let fixedOrder = oldOrder.normalized()
+        check(fixedOrder.title == "Dildar Alam (Zomato)", "old order heading repaired")
+        check(fixedOrder.subtitle == "Order on the way", "old order subtitle repaired")
+        check(fixedOrder.note == "Entry to T6 6113, Prestige Primrose Hills", "old order note repaired")
+        check(fixedOrder.timeLabel == "12:28 PM", "old order time repaired")
+
         // Default delivery companies
         let companies = MGModel.defaultDeliveryCompanies
         check(companies.contains("BLINKIT"), "default has Blinkit")

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.11 — 23 Oct 2026
+
+- Existing order rows are repaired and saved when history loads.
+
 ## 1.4.10 — 23 Oct 2026
 
 - Order notifications use the visitor and brand as the heading, with the order status and entry location on separate lines.
