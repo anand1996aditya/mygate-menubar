@@ -860,6 +860,7 @@ struct PendingPanelView: View {
     let onApprove: () -> Void
     let onDeny: () -> Void
     let onClose: () -> Void
+    var previewImage: NSImage? = nil
     @State private var busy = false
 
     var body: some View {
@@ -887,8 +888,9 @@ struct PendingPanelView: View {
             }
 
             HStack(alignment: .top, spacing: 14) {
-                photo
-                    .frame(width: 116, height: 146)
+                PendingPhoto(url: pending.photoURL,
+                             previewImage: previewImage,
+                             targetSize: CGSize(width: 116, height: 146))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 VStack(alignment: .leading, spacing: 6) {
                     Text(pending.title)
@@ -955,18 +957,82 @@ struct PendingPanelView: View {
         .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    @ViewBuilder private var photo: some View {
-        if let url = pending.photoURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image): image.resizable().scaledToFill()
-                case .failure: placeholder
-                case .empty: ZStack { Color.secondary.opacity(0.08); ProgressView().controlSize(.small) }
-                @unknown default: placeholder
-                }
+}
+
+/// Loads, downsizes and crops a visitor photo before the panel lays it out.
+/// The guard photo can be several thousand pixels wide; without this step the
+/// image's intrinsic size can dominate the panel and push the buttons away.
+enum PendingImageLoader {
+    static func load(from url: URL?, targetSize: CGSize) async -> NSImage? {
+        guard let url else { return nil }
+        let data: Data
+        do {
+            if url.isFileURL {
+                data = try Data(contentsOf: url)
+            } else {
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 12
+                let (body, response) = try await URLSession.shared.data(for: request)
+                guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+                data = body
             }
-        } else {
-            placeholder
+        } catch {
+            return nil
+        }
+        guard let source = NSImage(data: data),
+              let cg = source.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        return resized(cg, targetSize: targetSize)
+    }
+
+    static func resized(_ source: CGImage, targetSize: CGSize) -> NSImage? {
+        let width = max(1, Int(targetSize.width * 2))
+        let height = max(1, Int(targetSize.height * 2))
+        guard let context = CGContext(data: nil, width: width, height: height,
+                                      bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        context.interpolationQuality = .high
+        let scale = max(CGFloat(width) / CGFloat(source.width),
+                        CGFloat(height) / CGFloat(source.height))
+        let drawWidth = CGFloat(source.width) * scale
+        let drawHeight = CGFloat(source.height) * scale
+        let rect = CGRect(x: (CGFloat(width) - drawWidth) / 2,
+                          y: (CGFloat(height) - drawHeight) / 2,
+                          width: drawWidth, height: drawHeight)
+        context.draw(source, in: rect)
+        guard let output = context.makeImage() else { return nil }
+        return NSImage(cgImage: output, size: targetSize)
+    }
+}
+
+private struct PendingPhoto: View {
+    let url: URL?
+    let previewImage: NSImage?
+    let targetSize: CGSize
+    @State private var image: NSImage?
+
+    init(url: URL?, previewImage: NSImage?, targetSize: CGSize) {
+        self.url = url
+        self.previewImage = previewImage
+        self.targetSize = targetSize
+        _image = State(initialValue: previewImage)
+    }
+
+    var body: some View {
+        ZStack {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                placeholder
+            }
+        }
+        .frame(width: targetSize.width, height: targetSize.height)
+        .clipped()
+        .task(id: url?.absoluteString) {
+            if let previewImage { image = previewImage; return }
+            image = await PendingImageLoader.load(from: url, targetSize: targetSize)
         }
     }
 

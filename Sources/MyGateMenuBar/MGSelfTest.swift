@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 enum MGUnitTests {
@@ -54,6 +55,19 @@ enum MGUnitTests {
         check(MGModel.deliveryAddress(MGModel.otherDeliveryOption) == "DELIVERY", "other delivery maps to DELIVERY")
         check(MGModel.deliveryOptions(["AMAZON"]).first == MGModel.otherDeliveryOption, "other delivery listed first")
         check(MGModel.deliveryAddress("swiggy") == "SWIGGY", "named delivery uppercased")
+
+        // Visitor photo is downscaled before layout.
+        let huge = NSImage(size: NSSize(width: 3000, height: 4000))
+        huge.lockFocus()
+        NSColor.systemTeal.setFill()
+        NSRect(x: 0, y: 0, width: 3000, height: 4000).fill()
+        huge.unlockFocus()
+        if let cg = huge.cgImage(forProposedRect: nil, context: nil, hints: nil),
+           let small = PendingImageLoader.resized(cg, targetSize: CGSize(width: 116, height: 146)) {
+            check(small.size == NSSize(width: 116, height: 146), "visitor photo downscaled")
+        } else {
+            check(false, "visitor photo downscaled")
+        }
 
         // Default delivery companies
         let companies = MGModel.defaultDeliveryCompanies

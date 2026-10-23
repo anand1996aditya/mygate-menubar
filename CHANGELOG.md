@@ -1,6 +1,11 @@
 # Changelog
 
-## 1.4.3 — 23 Oct 2026
+## 1.4.4 — 23 Oct 2026
+
+- Visitor photos are downloaded, downscaled and cropped to the 116 x 146 thumbnail before layout.
+- A 3000 x 4000 test image no longer changes the panel height or hides the buttons.
+- Regression test added for the downscaler.
+
 
 - Visitor alert panel is now a compact card with a thumbnail, not a full-screen photo.
 - The panel has a close button, auto-closes after five minutes, and closes on screen change.

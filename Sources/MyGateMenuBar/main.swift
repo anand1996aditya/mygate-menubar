@@ -267,6 +267,37 @@ enum Snapshot {
     }
 }
 
+enum PendingPhotoSnapshot {
+    @MainActor
+    static func run(path: String) {
+        let width = 3000, height = 4000
+        let image = NSImage(size: NSSize(width: width, height: height))
+        image.lockFocus()
+        NSColor.systemTeal.setFill()
+        NSRect(x: 0, y: 0, width: width, height: height).fill()
+        NSColor.black.setFill()
+        NSRect(x: 500, y: 700, width: 2000, height: 2600).fill()
+        image.unlockFocus()
+        let pending = MGPending(validationId: "photo", title: "Zomato Delivery", subtitle: "Delivery",
+                                body: "Delivery executive at the main gate", category: "Delivery",
+                                time: "5:42 PM", flat: "T1 101", gate: "Main gate",
+                                photoURL: URL(string: "https://example.invalid/photo.jpg"))
+        let view = PendingPanelView(pending: pending, onApprove: {}, onDeny: {}, onClose: {},
+                                    previewImage: image)
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        if let rendered = renderer.nsImage, let tiff = rendered.tiffRepresentation,
+           let rep = NSBitmapImageRep(data: tiff),
+           let png = rep.representation(using: .png, properties: [:]) {
+            try? png.write(to: URL(fileURLWithPath: path))
+            print("PHOTO_SNAPSHOT \(path) \(Int(rendered.size.width))x\(Int(rendered.size.height))")
+            exit(0)
+        }
+        print("PHOTO_SNAPSHOT_FAILED")
+        exit(1)
+    }
+}
+
 enum PendingSnapshot {
     @MainActor
     static func run(path: String) {
@@ -322,6 +353,9 @@ if CommandLine.arguments.contains("--history-test") {
     startMenuBarApp()
 } else if CommandLine.arguments.contains("--selftest") {
     MainActor.assumeIsolated { SelfTest.run() }
+} else if let index = CommandLine.arguments.firstIndex(of: "--snapshot-pending-photo") {
+    let path = CommandLine.arguments.count > index + 1 ? CommandLine.arguments[index + 1] : "/tmp/pending-photo.png"
+    MainActor.assumeIsolated { PendingPhotoSnapshot.run(path: path) }
 } else if let index = CommandLine.arguments.firstIndex(of: "--snapshot-pending") {
     let path = CommandLine.arguments.count > index + 1 ? CommandLine.arguments[index + 1] : "/tmp/mygate-pending.png"
     MainActor.assumeIsolated { PendingSnapshot.run(path: path) }
