@@ -308,6 +308,29 @@ final class MGModel: ObservableObject {
         }
     }
 
+    /// Turns a gate notification into three readable lines.
+    nonisolated static func gatePresentation(title rawTitle: String, body rawBody: String) -> (title: String, subtitle: String, note: String?) {
+        let title = MGHistoryFormat.cleanText(rawTitle)
+        let body = MGHistoryFormat.cleanText(rawBody)
+        guard let parsed = parseGateBody(body) else { return (title, body, nil) }
+
+        if let range = title.range(of: #"^Your order from (.+?) is on the way$"#, options: .regularExpression) {
+            let company = MGHistoryFormat.cleanText(String(title[range]))
+                .replacingOccurrences(of: "Your order from ", with: "")
+                .replacingOccurrences(of: " is on the way", with: "")
+            return ("\(parsed.name) (\(company.capitalized))",
+                    "Order on the way",
+                    "Entry to \(parsed.place)")
+        }
+
+        if title.lowercased().contains("delivery executive") || title.lowercased() == "visitor at gate" {
+            return ("\(title) · \(parsed.company.capitalized)",
+                    "\(parsed.name) · Approval required at gate",
+                    "Entry to \(parsed.place)")
+        }
+        return (title, body, nil)
+    }
+
     nonisolated static func parseGateBody(_ body: String) -> (name: String, company: String, place: String)? {
         let pattern = #"^(.+?) from (.+?) requires your approval for entry to (.+)$"#
         guard let regex = try? NSRegularExpression(pattern: pattern),

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.10 — 23 Oct 2026
+
+- Order notifications use the visitor and brand as the heading, with the order status and entry location on separate lines.
+
 ## 1.4.9 — 23 Oct 2026
 
 - Gate history headings now show the visitor and company, for example "Vinay Kumar (Amazon)".

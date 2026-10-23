@@ -81,6 +81,14 @@ enum MGUnitTests {
               == "Dildar Alam · Pre-approved by you", "history tags removed")
         check(MGHistoryFormat.formattedEpoch("1792738691831") != nil, "epoch history time formatted")
 
+        // E-commerce order gate notification.
+        let order = MGModel.gatePresentation(
+            title: "Your order from Zomato is on the way",
+            body: "Dildar Alam from Zomato requires your approval for entry to T6 6113, Prestige Primrose Hills")
+        check(order.title == "Dildar Alam (Zomato)", "order heading name and company")
+        check(order.subtitle == "Order on the way", "order action line")
+        check(order.note == "Entry to T6 6113, Prestige Primrose Hills", "order entry note")
+
         // Default delivery companies
         let companies = MGModel.defaultDeliveryCompanies
         check(companies.contains("BLINKIT"), "default has Blinkit")

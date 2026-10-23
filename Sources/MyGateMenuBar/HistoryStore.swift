@@ -136,16 +136,11 @@ final class MGHistoryStore: ObservableObject {
     }
 
     func recordGate(_ pending: MGPending, status: String = "At gate") {
-        var title = MGHistoryFormat.cleanText(pending.title)
-        var subtitle = MGHistoryFormat.cleanText(pending.body.isEmpty ? pending.subtitle : pending.body)
-        var note: String?
-        if let parsed = MGModel.parseGateBody(subtitle) {
-            if title.lowercased().contains("delivery executive") || title.lowercased() == "visitor at gate" {
-                title = "\(title) · \(parsed.company.capitalized)"
-                subtitle = "\(parsed.name) · Approval required at gate"
-                note = "Entry to \(parsed.place)"
-            }
-        }
+        let shown = MGModel.gatePresentation(title: pending.title,
+                                             body: pending.body.isEmpty ? pending.subtitle : pending.body)
+        let title = shown.title
+        let subtitle = shown.subtitle
+        let note = shown.note
         let entry = MGHistoryEntry(
             id: "g:\(pending.validationId)",
             kind: .gate,
